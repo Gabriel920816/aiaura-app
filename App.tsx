@@ -14,6 +14,8 @@ const App: React.FC = () => {
   const [selectedCountry, setSelectedCountry] = useState<string>('Australia');
   const [bgImage, setBgImage] = useState<string>('https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=2560');
   
+  // 核心提升：全局选择的日期
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [todayKey, setTodayKey] = useState<string>(new Date().toDateString());
 
   const [weather, setWeather] = useState<{temp: number, code: number, condition: string, location: string}>({ 
@@ -26,16 +28,12 @@ const App: React.FC = () => {
   const [lastCoords, setLastCoords] = useState<{lat: number, lon: number, name: string} | null>(null);
 
   const updateWeather = async (lat: number, lon: number, locationName: string, retries = 3) => {
-    // Validate coordinates
     if (isNaN(lat) || isNaN(lon)) return;
-
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-    
     for (let i = 0; i < retries; i++) {
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        
         const data = await res.json();
         const code = data.current_weather.weathercode;
         let cond = 'Clear';
@@ -43,23 +41,12 @@ const App: React.FC = () => {
         else if (code >= 51 && code <= 67) cond = 'Rain';
         else if (code >= 71 && code <= 77) cond = 'Snow';
         else if (code >= 80) cond = 'Rain';
-        
-        setWeather({ 
-          temp: Math.round(data.current_weather.temperature), 
-          code, 
-          condition: cond,
-          location: locationName
-        });
+        setWeather({ temp: Math.round(data.current_weather.temperature), code, condition: cond, location: locationName });
         setLastCoords({ lat, lon, name: locationName });
-        return; // Success, exit function
+        return;
       } catch (e) {
-        const isLastAttempt = i === retries - 1;
-        if (isLastAttempt) {
-          console.error(`Aura: Final weather fetch attempt failed for ${locationName}:`, e);
-        } else {
-          console.warn(`Aura: Weather fetch attempt ${i + 1} failed. Retrying in ${1.5 * (i + 1)}s...`);
-          await new Promise(resolve => setTimeout(resolve, 1500 * (i + 1))); // Exponential-ish backoff
-        }
+        if (i === retries - 1) console.error("Weather failed:", e);
+        else await new Promise(r => setTimeout(r, 1500 * (i + 1)));
       }
     }
   };
@@ -85,24 +72,12 @@ const App: React.FC = () => {
 
     const midnightCheck = setInterval(() => {
       const current = new Date().toDateString();
-      setTodayKey((prev) => {
-        if (prev !== current) return current;
-        return prev;
-      });
+      if (todayKey !== current) {
+        setTodayKey(current);
+      }
     }, 60000);
-
     return () => clearInterval(midnightCheck);
   }, []);
-
-  useEffect(() => {
-    const weatherInterval = setInterval(() => {
-      if (lastCoords) {
-        updateWeather(lastCoords.lat, lastCoords.lon, lastCoords.name);
-      }
-    }, 15 * 60 * 1000);
-
-    return () => clearInterval(weatherInterval);
-  }, [lastCoords]);
 
   useEffect(() => { localStorage.setItem('aura_events', JSON.stringify(events)); }, [events]);
   useEffect(() => { localStorage.setItem('aura_todos', JSON.stringify(todos)); }, [todos]);
@@ -129,12 +104,19 @@ const App: React.FC = () => {
         />
         <main className="min-h-0 flex-1">
           <Dashboard 
-            events={events} setEvents={setEvents} todos={todos} setTodos={setTodos} 
-            periods={periods} setPeriods={setPeriods} showHealth={showHealth}
+            events={events} setEvents={setEvents} 
+            todos={todos} setTodos={setTodos} 
+            periods={periods} setPeriods={setPeriods} 
+            showHealth={showHealth}
             selectedCountry={selectedCountry} setSelectedCountry={setSelectedCountry}
+            selectedDate={selectedDate} setSelectedDate={setSelectedDate}
           />
         </main>
-        <AssistantBubble events={events} onAddEvent={(e) => setEvents([...events, e])} onSetCountry={setSelectedCountry} />
+        <AssistantBubble 
+          events={events} 
+          onAddEvent={(e) => setEvents([...events, e])} 
+          onSetCountry={setSelectedCountry} 
+        />
       </div>
     </div>
   );

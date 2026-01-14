@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { generateHoroscope, getZodiacSign } from '../geminiService';
 import { HoroscopeData } from '../types';
@@ -71,12 +72,20 @@ const GlassSelect = ({ value, options, onChange, label }: { value: number, optio
 };
 
 const GlassTripleDropdown = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
-  const [y, m, d] = value ? value.split('-').map(Number) : [2000, 1, 1];
+  const parts = value ? value.split('-') : [];
+  const y = parseInt(parts[0]) || 2000;
+  const m = parseInt(parts[1]) || 1;
+  const d = parseInt(parts[2]) || 1;
+
   const years = Array.from({ length: 100 }, (_, i) => 2024 - i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const daysInMonth = new Date(y, m, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const update = (ny = y, nm = m, nd = d) => { onChange(`${ny}-${String(nm).padStart(2, '0')}:${String(nd).padStart(2, '0')}`); };
+  
+  const update = (ny = y, nm = m, nd = d) => { 
+    onChange(`${ny}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`); 
+  };
+
   return (
     <div className="flex gap-2 w-full">
       <GlassSelect value={y} options={years} onChange={(val) => update(val, m, d)} label="Year" />
@@ -177,19 +186,14 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
 
   return (
     <header className="flex flex-col lg:flex-row justify-between items-center gap-4 shrink-0 overflow-visible relative z-[500] h-14">
-      {/* Left Section - Unified Brand Identifier, shifted left slightly as requested */}
       <div className="flex items-center gap-8 shrink-0 w-full lg:w-auto overflow-visible ml-0 lg:ml-10 transition-all duration-1000 ease-in-out">
         <div className="flex items-center select-none group cursor-default">
-          {/* Internal spacing unit: 0.2em */}
           <span className="text-[1.85rem] font-[100] tracking-[0.2em] text-white uppercase opacity-95 leading-none translate-y-[1px]">A</span>
-          
-          {/* Orb container: uses mr-[0.2em] to match the tracking distance of the letters */}
           <div className="relative w-[1.7rem] h-[1.7rem] thick-glass-orb rounded-full shrink-0 mr-[0.2em] overflow-visible">
             <div className="w-[6px] h-[6px] bg-white rounded-full animate-aura-core z-20"></div>
             <div className="w-[6px] h-[6px] bg-white rounded-full animate-aura-halo z-10"></div>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-[200%] h-full animate-orb-sheen pointer-events-none z-30 rounded-full"></div>
           </div>
-          
           <span className="text-[1.85rem] font-[100] tracking-[0.2em] text-white uppercase opacity-95 leading-none translate-y-[1px]">RA</span>
         </div>
 
@@ -245,7 +249,7 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
           </div>
 
           {showSearch && (
-            <div className="absolute top-full right-0 mt-4 p-6 ios-glass z-[9999] w-80 animate-in fade-in zoom-in-95 duration-300 shadow-2xl border border-white/10">
+            <div className="absolute top-full right-0 mt-4 p-6 ios-glass z-[99999] w-80 animate-in fade-in zoom-in-95 duration-300 shadow-2xl border border-white/10">
               <div className="flex gap-2 mb-6">
                 <div className="relative flex-1">
                   <input autoFocus placeholder="Explore City..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-sm text-white outline-none focus:bg-white/10 focus:border-white/30 transition-all font-bold placeholder:text-white/20" />
@@ -258,7 +262,10 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
                   <h5 className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 px-1 flex items-center gap-2"><i className="fa-solid fa-earth-americas opacity-40"></i>Popular Destinations</h5>
                   <div className="flex flex-wrap gap-2">
                     {POPULAR_CITIES.map((city) => (
-                      <button key={city.name} onClick={() => { onSetLocation(city.lat, city.lon, city.name); setShowSearch(false); }} className="px-3 py-2 rounded-xl ios-glass bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 group"><i className={`fa-solid ${city.icon} opacity-40 group-hover:opacity-100 group-hover:text-indigo-400 transition-all`}></i>{city.name}</button>
+                      <button key={city.name} onClick={() => { onSetLocation(city.lat, city.lon, city.name); setShowSearch(false); }} className="px-3 py-2 rounded-xl ios-glass bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 group">
+                        <i className={`fa-solid ${city.icon} opacity-40 group-hover:opacity-100 group-hover:text-white group-hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transition-all`}></i>
+                        {city.name}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -295,7 +302,7 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
       {isModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[25px] animate-in fade-in duration-300" onClick={() => setIsModalOpen(false)}>
           <div className="w-full max-w-[420px] p-8 md:p-10 rounded-[3.5rem] ios-glass border border-white/20 shadow-2xl flex flex-col gap-6 relative overflow-visible max-h-[90vh] overflow-y-auto scrollbar-hide" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all z-10"><i className="fa-solid fa-xmark text-white/40 text-xs"></i></button>
+            <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all z-10"><i className="fa-solid fa-xmark text-xs"></i></button>
             {!horoscope ? (
               <div className="py-6 flex flex-col items-center gap-6 text-center animate-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20"><i className="fa-solid fa-sparkles text-3xl text-indigo-400"></i></div>
@@ -304,7 +311,7 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
                   <p className="text-[11px] text-white/40 leading-relaxed max-w-[240px] mx-auto">Select your birthday to get your horoscope for today.</p>
                 </div>
                 <div className="w-full"><GlassTripleDropdown value={birthDate} onChange={setBirthDate} /></div>
-                <button disabled={isSyncing} onClick={() => { if (birthDate) { localStorage.setItem('aura_birthdate', birthDate); fetchHoroscope(birthDate); } }} className="w-full py-4 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-xl hover:brightness-110 active:scale-95 transition-all text-white flex items-center justify-center gap-3">
+                <button disabled={isSyncing} onClick={() => { if (birthDate) { localStorage.setItem('aura_birthdate', birthDate); fetchHoroscope(birthDate); } }} className="w-full py-4 ios-glass bg-white/10 border-white/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-white/20 active:scale-95 transition-all text-white flex items-center justify-center gap-3">
                   {isSyncing ? <><div className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div><span>Loading...</span></> : "Show Horoscope"}
                 </button>
               </div>

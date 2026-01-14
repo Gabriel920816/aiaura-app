@@ -10,7 +10,7 @@ export enum ViewType {
 export interface CalendarEvent {
   id: string;
   title: string;
-  date: string; // ISO String
+  date: string; // ISO String: YYYY-MM-DD
   startTime: string;
   endTime: string;
   description?: string;
@@ -22,6 +22,7 @@ export interface TodoItem {
   text: string;
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
+  date: string; // ISO String: YYYY-MM-DD
 }
 
 export interface PeriodRecord {
@@ -54,4 +55,13 @@ export interface HoroscopeData {
     wealth: number;
   };
   sources?: HoroscopeSource[];
+}
+
+export interface GmailMessage {
+  id: string;
+  sender: string;
+  subject: string;
+  snippet: string;
+  time: string;
+  unread: boolean;
 }

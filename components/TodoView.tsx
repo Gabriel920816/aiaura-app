@@ -14,11 +14,14 @@ const TodoView: React.FC<TodoViewProps> = ({ todos, setTodos }) => {
   const addTodo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
+    // Fix: Adding the missing 'date' property required by the TodoItem interface.
+    // Using today's ISO date (YYYY-MM-DD) as the default.
     const newItem: TodoItem = {
       id: Date.now().toString(),
       text: inputValue,
       completed: false,
-      priority: 'medium'
+      priority: 'medium',
+      date: new Date().toISOString().split('T')[0]
     };
     setTodos([...todos, newItem]);
     setInputValue('');

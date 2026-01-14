@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,60 +46,162 @@
           border-radius: 2rem;
           box-shadow: 0 10px 30px -5px var(--glass-shadow);
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+          isolation: isolate;
         }
 
-        .thick-glass-orb {
-          background: rgba(255, 255, 255, 0.01);
-          backdrop-filter: blur(50px) saturate(200%);
-          -webkit-backdrop-filter: blur(50px) saturate(200%);
-          border: 1.5px solid rgba(255, 255, 255, 0.25);
-          box-shadow: 
-            inset 0 0 10px rgba(255, 255, 255, 0.1),
-            0 5px 15px rgba(0, 0, 0, 0.8);
-          position: relative;
-          overflow: visible;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        /* --- 天气图标基础动态 --- */
+        @keyframes sun-rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .icon-sunny i { 
+          display: inline-block;
+          animation: sun-rotate 20s linear infinite; 
+          color: #fbbf24; 
+          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.5)); 
         }
 
-        @keyframes aura-halo-diffuse {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; filter: blur(15px); }
-          50% { transform: translate(-50%, -50%) scale(5.5); opacity: 0.25; filter: blur(20px); }
+        @keyframes cloud-sway {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(4px); }
+        }
+        .icon-cloudy i { 
+          display: inline-block;
+          animation: cloud-sway 6s ease-in-out infinite; 
+          color: #e2e8f0; 
+          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
         }
 
-        @keyframes aura-core-pulse {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; filter: blur(2px); }
-          50% { transform: translate(-50%, -50%) scale(2.4); opacity: 0.9; filter: blur(1px); box-shadow: 0 0 20px 2px rgba(255, 255, 255, 0.5); }
+        /* 下雨图标滴水动画 */
+        @keyframes raindrop-drip {
+          0% { transform: translateY(0) scale(1); opacity: 0; }
+          30% { opacity: 1; }
+          100% { transform: translateY(12px) scale(0.5); opacity: 0; }
+        }
+        .raindrop-drip {
+          position: absolute;
+          width: 2px;
+          height: 6px;
+          background: #38bdf8;
+          border-radius: 2px;
+          animation: raindrop-drip 1.2s infinite linear;
+          filter: drop-shadow(0 0 2px #38bdf8);
         }
 
-        @keyframes orb-sheen {
-          0% { transform: translateX(-150%) skewX(-20deg); opacity: 0; }
-          20% { opacity: 0.3; }
-          50% { opacity: 0; transform: translateX(150%) skewX(-20deg); }
-          100% { transform: translateX(150%) skewX(-20deg); opacity: 0; }
+        /* 下雪图标轻微旋转 */
+        @keyframes snow-pulse {
+          0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+          50% { transform: scale(1.1) rotate(15deg); opacity: 1; }
+        }
+        .icon-snowy i {
+          display: inline-block;
+          animation: snow-pulse 4s ease-in-out infinite;
+          color: #f8fafc;
+          filter: drop-shadow(0 0 5px rgba(255,255,255,0.4));
         }
 
-        .animate-aura-halo { 
-          position: absolute; left: 50%; top: 50%;
-          animation: aura-halo-diffuse 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite; 
+        /* --- 全屏天气背景特效 --- */
+        
+        /* 下雨 */
+        @keyframes rain-fall {
+          0% { transform: translateY(-20vh); }
+          100% { transform: translateY(120vh); }
+        }
+        .weather-rain-drop {
+          position: absolute;
+          width: 1px;
+          height: 80px;
+          background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.5));
+          animation: rain-fall 0.6s linear infinite;
+        }
+
+        /* 下雪: 修正缺失的动画 */
+        @keyframes snow-fall {
+          0% { transform: translateY(-10vh) translateX(0) rotate(0deg); }
+          25% { transform: translateY(20vh) translateX(15px) rotate(90deg); }
+          50% { transform: translateY(50vh) translateX(-15px) rotate(180deg); }
+          75% { transform: translateY(80vh) translateX(15px) rotate(270deg); }
+          100% { transform: translateY(110vh) translateX(0) rotate(360deg); }
+        }
+        .weather-snow-flake {
+          position: absolute;
+          background: #ffffff;
+          border-radius: 50%;
+          filter: blur(1.5px);
+          animation: snow-fall linear infinite;
+        }
+
+        /* Cloudy: 柔和云雾 */
+        @keyframes cloud-drift {
+          0% { transform: translateX(-100%) scale(1); opacity: 0; }
+          20% { opacity: 0.65; }
+          80% { opacity: 0.65; }
+          100% { transform: translateX(200%) scale(1.1); opacity: 0; }
+        }
+        .weather-cloud-mist {
+          position: absolute;
+          background: radial-gradient(circle at center, rgba(255, 255, 255, 0.45) 0%, transparent 70%); 
+          border-radius: 50%;
+          filter: blur(50px);
+          animation: cloud-drift 60s linear infinite;
+          mix-blend-mode: soft-light;
+        }
+
+        /* Clear: 净化光影 */
+        @keyframes tyndall-pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        .sun-flare {
+          position: absolute;
+          top: -25%;
+          right: -15%;
+          width: 120vw;
+          height: 120vw;
+          background: radial-gradient(circle, rgba(255, 252, 230, 0.4) 0%, transparent 65%);
+          filter: blur(120px);
           pointer-events: none;
+          mix-blend-mode: screen;
+          z-index: 1;
         }
-        .animate-aura-core { 
-          position: absolute; left: 50%; top: 50%;
-          animation: aura-core-pulse 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite; 
+        .weather-tyndall-beam {
+          position: absolute;
+          top: -30%;
+          right: -30%;
+          width: 160vw;
+          height: 160vw;
+          background: repeating-conic-gradient(
+            from 148deg at 88% 12%, 
+            transparent 0deg, 
+            rgba(255, 255, 255, 0.25) 3deg, 
+            rgba(255, 253, 220, 0.45) 7deg, 
+            transparent 12deg,
+            transparent 22deg
+          );
+          filter: blur(25px);
+          animation: tyndall-pulse 15s ease-in-out infinite;
           pointer-events: none;
-        }
-        .animate-orb-sheen {
-          animation: orb-sheen 10s ease-in-out infinite;
+          mix-blend-mode: screen;
+          z-index: 2;
         }
 
-        .heavy-frost {
-          background: rgba(15, 15, 15, 0.9) !important; 
-          backdrop-filter: blur(80px) saturate(160%) brightness(0.9) !important;
-          -webkit-backdrop-filter: blur(80px) saturate(160%) brightness(0.9) !important;
-          border: 1px solid rgba(255, 255, 255, 0.15) !important;
-          box-shadow: 0 80px 160px -20px rgba(0, 0, 0, 0.9) !important;
+        @keyframes dust-float {
+          0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+          15% { opacity: 0.8; }
+          85% { opacity: 0.8; }
+          100% { transform: translate(150px, -200px) rotate(360deg); opacity: 0; }
+        }
+        .sun-dust {
+          position: absolute;
+          background: #ffffff;
+          border-radius: 50%;
+          filter: blur(0.5px);
+          animation: dust-float 30s linear infinite;
+          pointer-events: none;
+          mix-blend-mode: screen;
+          box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+          z-index: 3;
         }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -114,11 +217,31 @@
             position: relative;
             z-index: 10;
             background: transparent !important;
-            overflow: hidden;
-            border-radius: 3.5rem;
         }
 
-        .font-slim-tall { font-weight: 100; letter-spacing: -0.05em; transform: scaleY(1.1); transform-origin: center; }
+        @keyframes aura-halo-diffuse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; filter: blur(15px); }
+          50% { transform: translate(-50%, -50%) scale(5.5); opacity: 0.25; filter: blur(20px); }
+        }
+        @keyframes aura-core-pulse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; filter: blur(2px); }
+          50% { transform: translate(-50%, -50%) scale(2.4); opacity: 0.9; filter: blur(1px); }
+        }
+        @keyframes orb-sheen {
+          0% { transform: translateX(-150%) skewX(-20deg); opacity: 0; }
+          20% { opacity: 0.3; }
+          50% { opacity: 0; transform: translateX(150%) skewX(-20deg); }
+          100% { transform: translateX(150%) skewX(-20deg); opacity: 0; }
+        }
+        .animate-aura-halo { position: absolute; left: 50%; top: 50%; animation: aura-halo-diffuse 5s infinite; }
+        .animate-aura-core { position: absolute; left: 50%; top: 50%; animation: aura-core-pulse 5s infinite; }
+        .animate-orb-sheen { animation: orb-sheen 10s ease-in-out infinite; }
+        .thick-glass-orb {
+          background: rgba(255, 255, 255, 0.01);
+          backdrop-filter: blur(50px);
+          border: 1.5px solid rgba(255, 255, 255, 0.25);
+        }
+        .font-slim-tall { font-weight: 100; transform: scaleY(1.1); }
     </style>
 <script type="importmap">
 {

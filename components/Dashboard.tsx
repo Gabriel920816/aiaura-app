@@ -15,11 +15,14 @@ interface DashboardProps {
   showHealth: boolean;
   selectedCountry: string;
   setSelectedCountry: (c: string) => void;
+  selectedDate: Date;
+  setSelectedDate: (d: Date) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   events, setEvents, todos, setTodos, periods, setPeriods, 
-  showHealth, selectedCountry, setSelectedCountry 
+  showHealth, selectedCountry, setSelectedCountry,
+  selectedDate, setSelectedDate
 }) => {
   return (
     <div className="h-full w-full grid gap-8 grid-cols-12 overflow-visible">
@@ -31,13 +34,19 @@ const Dashboard: React.FC<DashboardProps> = ({
           setEvents={setEvents}
           selectedCountry={selectedCountry}
           setSelectedCountry={setSelectedCountry}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
         />
       </div>
 
       {/* Daily Flow Sidebar - 25% width (3/12) */}
       <div className="col-span-12 lg:col-span-3 flex flex-col gap-6 h-full min-h-0 transition-all duration-700 overflow-visible">
         <div className={`${showHealth ? 'flex-[0.7]' : 'flex-1'} min-h-0 overflow-visible`}>
-          <TodoWidget todos={todos} setTodos={setTodos} />
+          <TodoWidget 
+            todos={todos} 
+            setTodos={setTodos} 
+            selectedDate={selectedDate} 
+          />
         </div>
 
         {showHealth && (

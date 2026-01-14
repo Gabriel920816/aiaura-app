@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CalendarEvent } from '../../types';
 import GlassDatePicker from '../ui/GlassDatePicker';
@@ -84,11 +85,12 @@ interface CalendarWidgetProps {
   setEvents: (events: CalendarEvent[]) => void;
   selectedCountry: string;
   setSelectedCountry: (country: string) => void;
+  selectedDate: Date;
+  setSelectedDate: (d: Date) => void;
 }
 
-const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, selectedCountry, setSelectedCountry }) => {
-  const [viewDate, setViewDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, selectedCountry, setSelectedCountry, selectedDate, setSelectedDate }) => {
+  const [viewDate, setViewDate] = useState(new Date(selectedDate));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -188,153 +190,157 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
     setEditingEvent(null); setFormTitle(''); setFormDate(selectedDateStr); setFormStart('10:00'); setFormEnd('11:00'); setFormCategory('work'); setIsModalOpen(true);
   };
 
+  const isAnyModalOpen = isModalOpen || isCountryModalOpen;
+
   return (
-    <div className="ios-glass p-6 md:p-8 h-full flex flex-col xl:flex-row gap-8 relative overflow-visible">
-      <div className="xl:w-[68%] flex flex-col h-full overflow-visible">
-        <div className="flex justify-between items-start mb-4 shrink-0 px-2">
-          <div className="flex flex-col">
-            <h3 className="text-[2rem] font-black tracking-tighter text-white leading-tight">
-              {viewDate.toLocaleString('default', { month: 'long' })}
-            </h3>
-            <p className="text-[1.1rem] font-black opacity-30 uppercase tracking-[0.5em]">{viewDate.getFullYear()}</p>
+    <div className="ios-glass p-6 md:p-8 h-full flex flex-col xl:flex-row gap-8 relative overflow-hidden">
+      <div className={`flex flex-col xl:flex-row gap-8 w-full h-full transition-all duration-700 rounded-[inherit] ${isAnyModalOpen ? 'content-blur-active' : ''}`}>
+        <div className="xl:w-[68%] flex flex-col h-full overflow-visible">
+          <div className="flex justify-between items-start mb-4 shrink-0 px-2">
+            <div className="flex flex-col">
+              <h3 className="text-[2rem] font-black tracking-tighter text-white leading-tight">
+                {viewDate.toLocaleString('default', { month: 'long' })}
+              </h3>
+              <p className="text-[1.1rem] font-black opacity-30 uppercase tracking-[0.5em]">{viewDate.getFullYear()}</p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-chevron-left"></i></button>
+              <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-chevron-right"></i></button>
+              <button onClick={() => setIsCountryModalOpen(true)} className="w-10 h-10 rounded-full ios-glass flex items-center justify-center border border-white/10 ml-2 hover:bg-white/10 transition-all"><i className="fa-solid fa-earth-asia"></i></button>
+            </div>
           </div>
-          <div className="flex gap-2 items-center">
-            <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-chevron-left"></i></button>
-            <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-chevron-right"></i></button>
-            <button onClick={() => setIsCountryModalOpen(true)} className="w-10 h-10 rounded-full ios-glass flex items-center justify-center border border-white/10 ml-2 hover:bg-white/10 transition-all"><i className="fa-solid fa-earth-asia"></i></button>
-          </div>
-        </div>
 
-        <div className="flex-1 grid grid-cols-7 gap-1 min-h-0 overflow-visible">
-          {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d => (
-            <div key={d} className="text-center text-[10px] font-black uppercase tracking-widest py-2 text-white/90">{d}</div>
-          ))}
-          {blanks.map(i => <div key={`b-${i}`} />)}
-          {days.map(d => {
-            const dateObj = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
-            const dayStr = String(d).padStart(2, '0');
-            const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dayStr}`;
-            const isSelected = dateStr === selectedDateStr;
-            const isToday = dateStr === todayStr;
-            const dayEventsList = events.filter(e => e.date === dateStr);
-            const monthShort = viewDate.toLocaleString('default', { month: 'short' });
-            const festivalsOnThisDay = currentMonthHolidays.filter(h => h.date === `${monthShort} ${dayStr}`);
-
-            return (
-              <div 
-                key={d} 
-                onClick={() => setSelectedDate(dateObj)} 
-                className={`relative flex flex-col items-center justify-start pt-2 px-1 cursor-pointer transition-all group overflow-visible min-h-[min(74px,12vh)] border-2
-                  ${isSelected ? 'bg-white/15 backdrop-blur-md rounded-2xl shadow-xl border-white/60 z-[20]' : 'border-transparent hover:bg-white/5 rounded-2xl'}
-                  ${isToday ? '!border-indigo-400/80 bg-white/5 shadow-[0_0_15px_rgba(129,140,248,0.2)]' : ''}
-                `}
-              >
-                <span className={`text-[1.1rem] font-black relative z-10 transition-colors ${isSelected || isToday ? 'text-white' : 'text-white/90'}`}>{d}</span>
-                <div className="flex gap-1 mt-1 shrink-0">
-                  {dayEventsList.length > 0 && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400'}`}></div>}
-                  {festivalsOnThisDay.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${festivalsOnThisDay[0].type === 'ecom' ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`}></div>}
-                </div>
-                {festivalsOnThisDay.length > 0 && (
-                  <p className={`absolute bottom-1 left-0 right-0 text-center text-[8px] font-black uppercase truncate px-1 tracking-tighter transition-opacity z-10 ${festivalsOnThisDay[0].type === 'ecom' ? 'text-rose-400' : 'text-amber-400'}`}>
-                    {festivalsOnThisDay[0].name}
-                  </p>
-                )}
-
-                {(festivalsOnThisDay.length > 0 || dayEventsList.length > 0) && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 p-4 !bg-black/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[500] border border-white/20 translate-y-2 group-hover:translate-y-0">
-                    {festivalsOnThisDay.map((f, idx) => (
-                       <div key={idx} className={`mb-2 pb-2 border-b border-white/10 last:border-0 ${idx > 0 ? 'mt-2' : ''}`}>
-                         <span className={`text-[10px] font-black uppercase tracking-widest ${f.type === 'ecom' ? 'text-rose-400' : 'text-amber-400'}`}>{f.name}</span>
-                         <p className="text-[7px] font-bold opacity-40 mt-0.5 tracking-[0.2em]">{f.type === 'ecom' ? 'ECOMMERCE EVENT' : 'PUBLIC HOLIDAY'}</p>
-                       </div>
-                    ))}
-                    {dayEventsList.map(ev => (
-                      <div key={ev.id} className="mb-2 last:mb-0">
-                         <p className="text-[11px] font-bold text-white leading-tight">{ev.title}</p>
-                         <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">{ev.startTime} - {ev.endTime}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="xl:w-[32%] flex flex-col xl:border-l border-white/10 xl:pl-6 overflow-visible">
-        <div className="flex items-center justify-between mb-8">
-            <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/90">
-              {selectedDate.toLocaleDateString('default', { day: 'numeric', month: 'short' })} Agenda
-            </h4>
-            <button onClick={openAddModal} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/20 transition-all border border-white/20"><i className="fa-solid fa-plus"></i></button>
-        </div>
-        
-        <div ref={agendaScrollRef} className="flex-1 overflow-y-auto pr-2 scrollbar-hide relative">
-          <div className="relative" style={{ height: `${timelineHours.length * HOUR_HEIGHT}px` }}>
-            {nowLinePos !== null && (
-              <div 
-                className="absolute left-0 right-0 z-50 flex items-center pointer-events-none" 
-                style={{ top: `${nowLinePos}px` }}
-              >
-                <div className="w-10 shrink-0 text-right pr-2">
-                  <span className="text-[8px] font-black text-indigo-400 bg-indigo-500/10 px-1 rounded-sm tracking-widest">NOW</span>
-                </div>
-                <div className="flex-1 h-px bg-gradient-to-r from-indigo-500/80 via-indigo-500/20 to-transparent relative">
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_12px_rgba(99,102,241,1)]"></div>
-                </div>
-              </div>
-            )}
-
-            {timelineHours.map(hour => (
-              <div key={hour} className="flex gap-4" style={{ height: `${HOUR_HEIGHT}px` }}>
-                <div className="w-10 text-right shrink-0"><span className="text-[10px] font-black text-white/30">{String(hour).padStart(2, '0')}:00</span></div>
-                <div className="flex-1 border-l border-white/5 border-t border-white/[0.03]"></div>
-              </div>
+          <div className="flex-1 grid grid-cols-7 gap-1 min-h-0 overflow-visible">
+            {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d => (
+              <div key={d} className="text-center text-[10px] font-black uppercase tracking-widest py-2 text-white/90">{d}</div>
             ))}
-
-            {positionedAgendaEvents.map(e => {
-              const startMin = timeToMinutes(e.startTime);
-              const endMin = timeToMinutes(e.endTime);
-              const top = (startMin - START_HOUR * 60) * (HOUR_HEIGHT / 60);
-              const height = Math.max((endMin - startMin) * (HOUR_HEIGHT / 60), 40);
-              const width = 100 / e.totalCols;
-              const left = e.colIndex * width;
+            {blanks.map(i => <div key={`b-${i}`} />)}
+            {days.map(d => {
+              const dateObj = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
+              const dayStr = String(d).padStart(2, '0');
+              const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dayStr}`;
+              const isSelected = dateStr === selectedDateStr;
+              const isToday = dateStr === todayStr;
+              const dayEventsList = events.filter(e => e.date === dateStr);
+              const monthShort = viewDate.toLocaleString('default', { month: 'short' });
+              const festivalsOnThisDay = currentMonthHolidays.filter(h => h.date === `${monthShort} ${dayStr}`);
 
               return (
                 <div 
-                  key={e.id}
-                  onClick={() => {
-                    setEditingEvent(e);
-                    setFormTitle(e.title);
-                    setFormDate(e.date);
-                    setFormStart(e.startTime);
-                    setFormEnd(e.endTime);
-                    setFormCategory(e.category);
-                    setIsModalOpen(true);
-                  }}
-                  className={`absolute p-3 ios-glass bg-white/5 rounded-2xl border-l-4 transition-all cursor-pointer overflow-hidden z-10 hover:bg-white/10 group
-                    ${e.category === 'work' ? 'border-l-indigo-500' : (e.category === 'health' ? 'border-l-rose-500' : 'border-l-emerald-500')}
+                  key={d} 
+                  onClick={() => setSelectedDate(dateObj)} 
+                  className={`relative flex flex-col items-center justify-start pt-2 px-1 cursor-pointer transition-all group overflow-visible min-h-[min(74px,12vh)] border-2
+                    ${isSelected ? 'bg-white/15 backdrop-blur-md rounded-2xl shadow-xl border-white/60 z-[20]' : 'border-transparent hover:bg-white/5 rounded-2xl'}
+                    ${isToday ? '!border-indigo-400/80 bg-white/5 shadow-[0_0_15px_rgba(129,140,248,0.2)]' : ''}
                   `}
-                  style={{ 
-                    top: `${top}px`, 
-                    height: `${height}px`, 
-                    left: `calc(3rem + ${left}%)`, 
-                    width: `calc(${width}% - 0.5rem)` 
-                  }}
                 >
-                  <p className="text-xs font-black text-white truncate group-hover:text-indigo-300 transition-colors">{e.title}</p>
-                  <p className="text-[9px] font-black text-white/40 mt-1 uppercase tracking-tighter">{e.startTime} - {e.endTime}</p>
+                  <span className={`text-[1.1rem] font-black relative z-10 transition-colors ${isSelected || isToday ? 'text-white' : 'text-white/90'}`}>{d}</span>
+                  <div className="flex gap-1 mt-1 shrink-0">
+                    {dayEventsList.length > 0 && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400'}`}></div>}
+                    {festivalsOnThisDay.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${festivalsOnThisDay[0].type === 'ecom' ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`}></div>}
+                  </div>
+                  {festivalsOnThisDay.length > 0 && (
+                    <p className={`absolute bottom-1 left-0 right-0 text-center text-[8px] font-black uppercase truncate px-1 tracking-tighter transition-opacity z-10 ${festivalsOnThisDay[0].type === 'ecom' ? 'text-rose-400' : 'text-amber-400'}`}>
+                      {festivalsOnThisDay[0].name}
+                    </p>
+                  )}
+
+                  {(festivalsOnThisDay.length > 0 || dayEventsList.length > 0) && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 p-4 !bg-black/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[500] border border-white/20 translate-y-2 group-hover:translate-y-0">
+                      {festivalsOnThisDay.map((f, idx) => (
+                         <div key={idx} className={`mb-2 pb-2 border-b border-white/10 last:border-0 ${idx > 0 ? 'mt-2' : ''}`}>
+                           <span className={`text-[10px] font-black uppercase tracking-widest ${f.type === 'ecom' ? 'text-rose-400' : 'text-amber-400'}`}>{f.name}</span>
+                           <p className="text-[7px] font-bold opacity-40 mt-0.5 tracking-[0.2em]">{f.type === 'ecom' ? 'ECOMMERCE EVENT' : 'PUBLIC HOLIDAY'}</p>
+                         </div>
+                      ))}
+                      {dayEventsList.map(ev => (
+                        <div key={ev.id} className="mb-2 last:mb-0">
+                           <p className="text-[11px] font-bold text-white leading-tight">{ev.title}</p>
+                           <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">{ev.startTime} - {ev.endTime}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
+
+        <div className="xl:w-[32%] flex flex-col xl:border-l border-white/10 xl:pl-6 overflow-visible">
+          <div className="flex items-center justify-between mb-8">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/90">
+                {selectedDate.toLocaleDateString('default', { day: 'numeric', month: 'short' })} Agenda
+              </h4>
+              <button onClick={openAddModal} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/20 transition-all border border-white/20"><i className="fa-solid fa-plus"></i></button>
+          </div>
+          
+          <div ref={agendaScrollRef} className="flex-1 overflow-y-auto pr-2 scrollbar-hide relative">
+            <div className="relative" style={{ height: `${timelineHours.length * HOUR_HEIGHT}px` }}>
+              {nowLinePos !== null && (
+                <div 
+                  className="absolute left-0 right-0 z-50 flex items-center pointer-events-none" 
+                  style={{ top: `${nowLinePos}px` }}
+                >
+                  <div className="w-10 shrink-0 text-right pr-2">
+                    <span className="text-[8px] font-black text-indigo-400 bg-indigo-500/10 px-1 rounded-sm tracking-widest">NOW</span>
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-500/80 via-indigo-500/20 to-transparent relative">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_12px_rgba(99,102,241,1)]"></div>
+                  </div>
+                </div>
+              )}
+
+              {timelineHours.map(hour => (
+                <div key={hour} className="flex gap-4" style={{ height: `${HOUR_HEIGHT}px` }}>
+                  <div className="w-10 text-right shrink-0"><span className="text-[10px] font-black text-white/30">{String(hour).padStart(2, '0')}:00</span></div>
+                  <div className="flex-1 border-l border-white/5 border-t border-white/[0.03]"></div>
+                </div>
+              ))}
+
+              {positionedAgendaEvents.map(e => {
+                const startMin = timeToMinutes(e.startTime);
+                const endMin = timeToMinutes(e.endTime);
+                const top = (startMin - START_HOUR * 60) * (HOUR_HEIGHT / 60);
+                const height = Math.max((endMin - startMin) * (HOUR_HEIGHT / 60), 40);
+                const width = 100 / e.totalCols;
+                const left = e.colIndex * width;
+
+                return (
+                  <div 
+                    key={e.id}
+                    onClick={() => {
+                      setEditingEvent(e);
+                      setFormTitle(e.title);
+                      setFormDate(e.date);
+                      setFormStart(e.startTime);
+                      setFormEnd(e.endTime);
+                      setFormCategory(e.category);
+                      setIsModalOpen(true);
+                    }}
+                    className={`absolute p-3 ios-glass bg-white/5 rounded-2xl border-l-4 transition-all cursor-pointer overflow-hidden z-10 hover:bg-white/10 group
+                      ${e.category === 'work' ? 'border-l-indigo-500' : (e.category === 'health' ? 'border-l-rose-500' : 'border-l-emerald-500')}
+                    `}
+                    style={{ 
+                      top: `${top}px`, 
+                      height: `${height}px`, 
+                      left: `calc(3rem + ${left}%)`, 
+                      width: `calc(${width}% - 0.5rem)` 
+                    }}
+                  >
+                    <p className="text-xs font-black text-white truncate group-hover:text-indigo-300 transition-colors">{e.title}</p>
+                    <p className="text-[9px] font-black text-white/40 mt-1 uppercase tracking-tighter">{e.startTime} - {e.endTime}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {isCountryModalOpen && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center heavy-frost rounded-[2rem] animate-in fade-in duration-500" onClick={() => setIsCountryModalOpen(false)}>
-            <div className="w-full max-w-xl p-10 rounded-[3.5rem] !bg-white/5 backdrop-blur-[30px] border border-white/10 animate-in zoom-in-95 duration-300 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[15px] animate-in fade-in duration-300" onClick={() => setIsCountryModalOpen(false)}>
+            <div className="w-full max-w-xl p-10 rounded-[3.5rem] ios-glass border border-white/20 animate-in zoom-in-95 duration-300 shadow-2xl relative overflow-visible" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-10">
                   <h3 className="text-[1.2rem] font-black text-white uppercase tracking-[0.4em]">Global Regions</h3>
                   <button onClick={() => setIsCountryModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-xmark text-white/40"></i></button>
@@ -352,8 +358,8 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
       )}
 
       {isModalOpen && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center heavy-frost rounded-[2rem] animate-in fade-in duration-500" onClick={() => setIsModalOpen(false)}>
-           <form onSubmit={handleSave} className="w-full max-w-md p-10 rounded-[3.5rem] !bg-white/5 backdrop-blur-[30px] border border-white/10 space-y-8 animate-in zoom-in-95 duration-300 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[15px] animate-in fade-in duration-300" onClick={() => setIsModalOpen(false)}>
+           <form onSubmit={handleSave} className="w-full max-w-md p-10 rounded-[3.5rem] ios-glass border border-white/20 space-y-8 animate-in zoom-in-95 duration-300 shadow-2xl relative overflow-visible" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <h3 className="text-2xl font-black text-white tracking-tighter">{editingEvent ? 'Edit Event' : 'Add Event'}</h3>
                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10 text-white/40 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
@@ -370,11 +376,11 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
                 <GlassTimePicker label="Start Time" value={formStart} onChange={setFormStart} />
                 <GlassTimePicker label="End Time" value={formEnd} onChange={setFormEnd} />
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 pt-4">
                 {editingEvent && (
                   <button type="button" onClick={() => { setEvents(events.filter(ev => ev.id !== editingEvent.id)); setIsModalOpen(false); }} className="px-6 py-5 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-300 font-black uppercase tracking-widest text-[9px] hover:bg-rose-500/30 transition-all">Delete</button>
                 )}
-                <button type="submit" className="flex-1 py-5 ios-btn rounded-2xl font-black uppercase tracking-[0.4em] text-xs shadow-xl active:scale-95 transition-all text-white bg-indigo-600">Save Event</button>
+                <button type="submit" className="flex-1 py-5 ios-glass bg-white/10 border-white/30 hover:bg-white/20 font-black uppercase tracking-[0.4em] text-xs shadow-2xl active:scale-95 transition-all text-white">Save Event</button>
               </div>
            </form>
         </div>
