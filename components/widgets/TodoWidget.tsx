@@ -40,12 +40,21 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ todos, setTodos, selectedDate }
     contextTodos.filter(t => !t.completed).length, 
   [contextTodos]);
 
-  // 最终显示的过滤列表（基于当前选中的 Tab）
+  // 最终显示的过滤列表（基于当前选中的 Tab）并应用排序逻辑
   const displayTodos = useMemo(() => {
-    return contextTodos.filter(t => {
+    const filtered = contextTodos.filter(t => {
       if (activeTab === 'active') return !t.completed;
       if (activeTab === 'completed') return t.completed;
       return true;
+    });
+
+    // 排序逻辑：未完成在前，已完成在后
+    return [...filtered].sort((a, b) => {
+      if (a.completed === b.completed) {
+        // 如果完成状态相同，保持原有的相对顺序（通常是时间顺序）
+        return 0;
+      }
+      return a.completed ? 1 : -1;
     });
   }, [contextTodos, activeTab]);
 
