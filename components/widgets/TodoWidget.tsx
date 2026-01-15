@@ -24,31 +24,30 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ todos, setTodos, selectedDate }
 
   const isViewingToday = selectedDateStr === systemTodayStr;
 
-  // 核心逻辑：智能过滤与自动滚动 (Rollover)
-  const filteredTodos = useMemo(() => {
+  // 基础过滤：获取当前日期相关的所有任务（包含活跃的延期任务）
+  const contextTodos = useMemo(() => {
     return todos.filter(t => {
-      // 1. 如果任务日期匹配选择日期，始终显示（无论完成与否）
-      if (t.date === selectedDateStr) {
-        if (activeTab === 'active') return !t.completed;
-        if (activeTab === 'completed') return t.completed;
-        return true;
-      }
-
-      // 2. Rollover 机制：如果正在查看“今天”，显示所有“过去未完成”的任务
-      if (isViewingToday && t.date < systemTodayStr && !t.completed) {
-        if (activeTab === 'completed') return false; // 过去任务此时肯定是未完成的
-        return true;
-      }
-
+      // 1. 属于选定日期的任务
+      if (t.date === selectedDateStr) return true;
+      // 2. 如果正在查看今天，包含所有未完成的过往任务（Rollover）
+      if (isViewingToday && t.date < systemTodayStr && !t.completed) return true;
       return false;
     });
-  }, [todos, selectedDateStr, systemTodayStr, isViewingToday, activeTab]);
+  }, [todos, selectedDateStr, systemTodayStr, isViewingToday]);
 
-  const stats = useMemo(() => ({
-    all: filteredTodos.length,
-    active: filteredTodos.filter(t => !t.completed).length,
-    completed: filteredTodos.filter(t => t.completed).length
-  }), [filteredTodos]);
+  // 计算活跃任务数（待办数）
+  const activeCount = useMemo(() => 
+    contextTodos.filter(t => !t.completed).length, 
+  [contextTodos]);
+
+  // 最终显示的过滤列表（基于当前选中的 Tab）
+  const displayTodos = useMemo(() => {
+    return contextTodos.filter(t => {
+      if (activeTab === 'active') return !t.completed;
+      if (activeTab === 'completed') return t.completed;
+      return true;
+    });
+  }, [contextTodos, activeTab]);
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,18 +57,17 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ todos, setTodos, selectedDate }
       text: input, 
       completed: false, 
       priority: 'medium',
-      date: selectedDateStr // 绑定到当前选择的日期
+      date: selectedDateStr 
     }, ...todos]);
     setInput('');
   };
 
   const toggle = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    
     setTodos(todos.map(t => {
       if (t.id === id) {
         const nextCompleted = !t.completed;
-        // 核心：如果是在今天完成过去的遗留任务，将任务日期更新为今天，实现“永久记录到对应日期内”
+        // 如果是今天完成的过往任务，将其归档到今天
         const nextDate = (isViewingToday && nextCompleted) ? systemTodayStr : t.date;
         return { ...t, completed: nextCompleted, date: nextDate };
       }
@@ -100,132 +98,122 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ todos, setTodos, selectedDate }
 
   return (
     <div className="ios-glass p-0 h-full flex flex-col min-h-0 overflow-hidden relative">
-      <div className="px-6 py-4 border-b border-white/10 shrink-0 flex justify-between items-center">
-        <div className="flex flex-col">
+      <div className={`flex flex-col h-full transition-all duration-100 ${editingTodo ? 'content-blur-active' : ''}`}>
+        <div className="px-6 py-4 border-b border-white/10 shrink-0 flex justify-between items-center">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">
             {isViewingToday ? 'Today\'s Focus' : `Tasks for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
           </h3>
         </div>
-        <span className="text-[10px] font-black digital-number opacity-30">{stats.active} ACTIVE</span>
-      </div>
 
-      <div className="px-4 py-3 shrink-0">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-1 flex relative">
-          <div 
-            className="absolute top-1 bottom-1 bg-white/15 rounded-xl transition-all duration-300 ease-out z-0" 
-            style={{ 
-              width: 'calc(33.33% - 4px)', 
-              left: activeTab === 'all' ? '4px' : activeTab === 'active' ? '33.33%' : '66.66%' 
-            }}
-          ></div>
-          
-          <button onClick={() => setActiveTab('all')} className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors ${activeTab === 'all' ? 'text-white' : 'text-white/30'}`}>All</button>
-          <button onClick={() => setActiveTab('active')} className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors ${activeTab === 'active' ? 'text-white' : 'text-white/30'}`}>To Do</button>
-          <button onClick={() => setActiveTab('completed')} className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors ${activeTab === 'completed' ? 'text-white' : 'text-white/30'}`}>Done</button>
-        </div>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide min-h-0">
-        {filteredTodos.length > 0 ? filteredTodos.map(todo => {
-          const isRollover = todo.date < selectedDateStr && !todo.completed;
-          return (
+        <div className="px-4 py-3 shrink-0">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-1 flex relative">
             <div 
-              key={todo.id} 
-              onClick={() => setEditingTodo(todo)}
-              className={`group flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden
-                ${todo.completed ? 'bg-transparent border-white/5 opacity-40' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}
-                ${isRollover ? '!border-indigo-500/30' : ''}`}
+              className="absolute top-1 bottom-1 bg-white/15 rounded-xl transition-all duration-300 ease-out z-0" 
+              style={{ 
+                width: 'calc(33.33% - 4px)', 
+                left: activeTab === 'all' ? '4px' : activeTab === 'active' ? '33.33%' : '66.66%' 
+              }}
+            ></div>
+            
+            <button 
+              onClick={() => setActiveTab('all')} 
+              className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors flex items-center justify-center gap-2 ${activeTab === 'all' ? 'text-white' : 'text-white/30'}`}
             >
-               <div className="flex items-center min-w-0 flex-1">
-                  {isRollover && <i className="fa-solid fa-clock-rotate-left text-[10px] text-indigo-400 mr-2 opacity-60"></i>}
-                  <PriorityIcon level={todo.priority} />
-                  <span className={`text-sm font-semibold tracking-tight transition-all truncate text-white ${todo.completed ? 'line-through opacity-50' : ''}`}>
-                    {todo.text}
-                  </span>
-               </div>
-
-               <div className="flex items-center gap-2 shrink-0">
-                  <button 
-                    onClick={(e) => remove(todo.id, e)}
-                    className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-rose-500/30 transition-all"
-                  >
-                    <i className="fa-solid fa-trash-can text-[10px]"></i>
-                  </button>
-                  <div 
-                    onClick={(e) => toggle(todo.id, e)}
-                    className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all 
-                      ${todo.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-white/20 bg-black/10 hover:border-white/50'}`}
-                  >
-                    {todo.completed && <i className="fa-solid fa-check text-[10px]"></i>}
-                  </div>
-               </div>
-            </div>
-          );
-        }) : (
-          <div className="py-12 flex flex-col items-center justify-center opacity-20">
-              <i className="fa-solid fa-calendar-check text-3xl mb-3"></i>
-              <p className="text-[9px] font-black uppercase tracking-[0.4em]">No tasks scheduled</p>
+              All
+              {activeCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] digital-number min-w-[14px] text-center">
+                  {activeCount}
+                </span>
+              )}
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('active')} 
+              className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors flex items-center justify-center gap-2 ${activeTab === 'active' ? 'text-white' : 'text-white/30'}`}
+            >
+              To Do
+              {activeCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] digital-number min-w-[14px] text-center">
+                  {activeCount}
+                </span>
+              )}
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('completed')} 
+              className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest relative z-10 transition-colors ${activeTab === 'completed' ? 'text-white' : 'text-white/30'}`}
+            >
+              Done
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide min-h-0">
+          {displayTodos.map(todo => {
+            const isRollover = todo.date < selectedDateStr && !todo.completed;
+            return (
+              <div 
+                key={todo.id} 
+                onClick={() => setEditingTodo(todo)}
+                className={`group flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden
+                  ${todo.completed ? 'bg-transparent border-white/5 opacity-40' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'}
+                  ${isRollover ? '!border-indigo-500/30' : ''}`}
+              >
+                <div className="flex items-center min-w-0 flex-1">
+                    {isRollover && <i className="fa-solid fa-clock-rotate-left text-[9px] text-indigo-400 mr-2 opacity-60"></i>}
+                    <PriorityIcon level={todo.priority} />
+                    <span className={`text-[13px] font-bold tracking-tight transition-all truncate text-white/90 ${todo.completed ? 'line-through opacity-50' : ''}`}>
+                      {todo.text}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={(e) => remove(todo.id, e)} className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-rose-500/30 transition-all"><i className="fa-solid fa-trash-can text-[9px]"></i></button>
+                    <div onClick={(e) => toggle(todo.id, e)} className={`w-6 h-6 rounded-lg border-[1.5px] flex items-center justify-center transition-all ${todo.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-white/20 bg-black/5 hover:border-white/50'}`}>{todo.completed && <i className="fa-solid fa-check text-[9px]"></i>}</div>
+                </div>
+              </div>
+            );
+          })}
+          {displayTodos.length === 0 && (
+            <div className="py-12 flex flex-col items-center justify-center opacity-20">
+                <i className="fa-solid fa-calendar-check text-2xl mb-3"></i>
+                <p className="text-[9px] font-black uppercase tracking-[0.4em]">No tasks scheduled</p>
+            </div>
+          )}
+        </div>
 
-      <div className="p-4 border-t border-white/10 bg-white/[0.02]">
-        <form onSubmit={add}>
-          <input 
-            type="text" 
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder={`Add task for ${isViewingToday ? 'today' : 'this date'}...`}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs outline-none focus:bg-white/10 focus:border-white/30 transition-all placeholder:opacity-30 text-white font-bold"
-          />
-        </form>
+        <div className="p-4 border-t border-white/10 bg-white/[0.02]">
+          <form onSubmit={add}><input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder={`Add task...`} className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-[11px] outline-none focus:bg-white/10 focus:border-white/30 transition-all placeholder:opacity-30 text-white font-bold" /></form>
+        </div>
       </div>
 
       {editingTodo && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xl animate-in fade-in" onClick={() => setEditingTodo(null)}>
-          <div className="w-full ios-glass border-white/20 p-8 flex flex-col gap-6 shadow-2xl scale-in-center" onClick={e => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[10000] flex items-center justify-center p-4 bg-black/20 animate-in fade-in duration-100" onClick={() => setEditingTodo(null)}>
+          <div className="w-full max-w-[280px] heavy-glass border-white/20 p-6 rounded-[2.2rem] flex flex-col gap-5 shadow-2xl animate-in zoom-in-95 duration-100 relative" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
-               <h4 className="text-[10px] font-black uppercase tracking-widest text-white/50">Edit Task</h4>
-               <button onClick={() => setEditingTodo(null)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/30 hover:text-white"><i className="fa-solid fa-xmark text-xs"></i></button>
+               <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-white">Edit Task</h4>
+               <button onClick={() => setEditingTodo(null)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/30 hover:text-white transition-all border border-white/10 hover:bg-white/10"><i className="fa-solid fa-xmark text-xs"></i></button>
             </div>
             
-            <input 
-              autoFocus
-              className="bg-transparent border-none text-xl font-black text-white outline-none w-full"
-              value={editingTodo.text}
-              onChange={(e) => {
-                updateText(editingTodo.id, e.target.value);
-                setEditingTodo({...editingTodo, text: e.target.value});
-              }}
-            />
-
-            <div className="space-y-3">
-               <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Priority</span>
-               <div className="grid grid-cols-3 gap-2">
-                  {(['low', 'medium', 'high'] as const).map(p => (
-                    <button 
-                      key={p}
-                      onClick={() => {
-                        updatePriority(editingTodo.id, p);
-                        setEditingTodo({...editingTodo, priority: p});
-                      }}
-                      className={`py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all
-                        ${editingTodo.priority === p 
-                          ? (p === 'high' ? 'bg-rose-500/20 border-rose-500/50 text-rose-300' : p === 'medium' ? 'bg-orange-500/20 border-orange-500/50 text-orange-300' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300') 
-                          : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10'}`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-               </div>
+            <div className="space-y-1">
+              <input 
+                autoFocus 
+                className="bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-base font-bold text-white outline-none w-full focus:bg-white/10 focus:border-white/30 transition-all" 
+                value={editingTodo.text} 
+                onChange={(e) => { updateText(editingTodo.id, e.target.value); setEditingTodo({...editingTodo, text: e.target.value}); }} 
+              />
             </div>
 
-            <button 
-              onClick={() => setEditingTodo(null)}
-              className="w-full py-4 ios-glass bg-white/10 border-white/30 hover:bg-white/20 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-lg active:scale-95 transition-all mt-2"
-            >
-              Save Changes
-            </button>
+            <div className="grid grid-cols-3 gap-1.5">
+                {(['low', 'medium', 'high'] as const).map(p => (
+                  <button 
+                    key={p} 
+                    onClick={() => { updatePriority(editingTodo.id, p); setEditingTodo({...editingTodo, priority: p}); }} 
+                    className={`py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${editingTodo.priority === p ? (p === 'high' ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' : p === 'medium' ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300') : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10 hover:text-white/60'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       )}

@@ -34,14 +34,14 @@ const FocusWidget: React.FC<FocusWidgetProps> = ({ isCompact }) => {
 
       <div className="flex gap-1.5">
           <button 
-            onClick={() => setIsActive(!isActive)}
+            onClick={(e) => { e.stopPropagation(); setIsActive(!isActive); }}
             className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isActive ? 'bg-white text-black scale-105' : 'bg-white/5 text-white hover:bg-white/10'}`}
           >
             <i className={`fa-solid ${isActive ? 'fa-pause' : 'fa-play ml-0.5'} text-[10px]`}></i>
           </button>
           
           <button 
-            onClick={() => { setIsActive(false); setTimeLeft(25 * 60); }}
+            onClick={(e) => { e.stopPropagation(); setIsActive(false); setTimeLeft(25 * 60); }}
             className="w-7 h-7 rounded-lg bg-white/5 text-white/30 flex items-center justify-center hover:bg-white/10 hover:text-white"
           >
             <i className="fa-solid fa-rotate-right text-[8px]"></i>

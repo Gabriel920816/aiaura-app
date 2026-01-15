@@ -1,4 +1,3 @@
-
 export enum ViewType {
   CALENDAR = 'CALENDAR',
   TASKS = 'TASKS',
@@ -55,13 +54,4 @@ export interface HoroscopeData {
     wealth: number;
   };
   sources?: HoroscopeSource[];
-}
-
-export interface GmailMessage {
-  id: string;
-  sender: string;
-  subject: string;
-  snippet: string;
-  time: string;
-  unread: boolean;
 }

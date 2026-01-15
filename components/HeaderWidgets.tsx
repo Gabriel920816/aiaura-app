@@ -5,6 +5,7 @@ import { HoroscopeData } from '../types';
 import FocusWidget from './widgets/FocusWidget';
 import WeatherIcon from './WeatherIcon';
 import BigClock from './widgets/BigClock';
+import StandardModal from './ui/StandardModal';
 
 const ZODIAC_META: Record<string, { color: string; path: string }> = {
   Aries: { color: '#FF4136', path: "M7 2a5 5 0 0 1 10 0v2l-5 4-5-4V2zm0 20v-8l5 4 5-4v8H7z" },
@@ -108,11 +109,16 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
   const [birthDate, setBirthDate] = useState<string>(localStorage.getItem('aura_birthdate') || '');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
+  // 自定义背景状态
+  const [customBgUrl, setCustomBgUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const bgPickerRef = useRef<HTMLDivElement>(null);
 
@@ -167,6 +173,19 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
     );
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setBgImage(base64String);
+        setShowBgPicker(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const weatherConfig = useMemo(() => {
     const t = weatherData?.temp ?? 20;
     const cond = weatherData?.condition || 'Clear';
@@ -210,15 +229,67 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
                   <i className="fa-solid fa-palette text-[10px]"></i>
                 </button>
                 {showBgPicker && (
-                  <div className="absolute top-full left-0 mt-4 p-5 ios-glass z-[9999] w-72 shadow-2xl animate-in fade-in slide-in-from-top-2 border border-white/10">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3 px-1">Ambience Themes</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        {BACKGROUND_OPTIONS.map((bg, i) => (
-                            <button key={i} onClick={() => { setBgImage(bg.url); setShowBgPicker(false); }} className="group relative h-24 rounded-2xl overflow-hidden border border-white/10 hover:border-white/50 transition-all bg-white/5">
-                                <img src={bg.url} alt={bg.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[9px] font-black uppercase text-white tracking-widest">{bg.name}</span></div>
-                            </button>
-                        ))}
+                  <div className="absolute top-full left-0 mt-4 p-5 ios-glass z-[9999] w-80 shadow-2xl animate-in fade-in slide-in-from-top-2 border border-white/10 flex flex-col gap-6">
+                    <div>
+                      <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3 px-1">Ambience Themes</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                          {BACKGROUND_OPTIONS.map((bg, i) => (
+                              <button key={i} onClick={() => { setBgImage(bg.url); setShowBgPicker(false); }} className="group relative h-20 rounded-2xl overflow-hidden border border-white/10 hover:border-white/50 transition-all bg-white/5">
+                                  <img src={bg.url} alt={bg.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[9px] font-black uppercase text-white tracking-widest">{bg.name}</span></div>
+                              </button>
+                          ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px w-full bg-white/10"></div>
+
+                    <div>
+                      <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3 px-1">Personalize</h4>
+                      <div className="space-y-3">
+                        {/* URL 输入 */}
+                        <div className="relative flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Image URL..." 
+                            value={customBgUrl}
+                            onChange={(e) => setCustomBgUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && customBgUrl.trim()) {
+                                setBgImage(customBgUrl.trim());
+                                setShowBgPicker(false);
+                              }
+                            }}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] outline-none focus:bg-white/10 focus:border-white/30 transition-all placeholder:opacity-30 text-white font-bold"
+                          />
+                          <button 
+                            disabled={!customBgUrl.trim()}
+                            onClick={() => {
+                              setBgImage(customBgUrl.trim());
+                              setShowBgPicker(false);
+                            }}
+                            className="w-10 h-10 ios-glass bg-white/5 flex items-center justify-center border border-white/10 hover:bg-white/15 transition-all disabled:opacity-30"
+                          >
+                            <i className="fa-solid fa-arrow-right text-[10px]"></i>
+                          </button>
+                        </div>
+                        
+                        {/* 文件上传 */}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          onChange={handleFileUpload} 
+                          accept="image/*" 
+                          className="hidden" 
+                        />
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full h-10 ios-glass bg-white/5 flex items-center justify-center gap-3 border border-white/10 hover:bg-white/15 transition-all group"
+                        >
+                          <i className="fa-solid fa-cloud-arrow-up text-[10px] opacity-40 group-hover:opacity-100 transition-opacity"></i>
+                          <span className="text-[9px] font-black uppercase tracking-widest">Upload local image</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -231,7 +302,12 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
       </div>
 
       <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2.5 flex-1 w-full lg:auto overflow-visible pr-0 lg:pr-6">
-        <div className="ios-glass px-4 py-1.5 h-10 flex items-center shrink-0"><FocusWidget isCompact /></div>
+        <div 
+          onClick={() => setIsFocusModalOpen(true)}
+          className="ios-glass px-4 py-1.5 h-10 flex items-center shrink-0 cursor-pointer hover:bg-white/10 transition-all"
+        >
+          <FocusWidget isCompact />
+        </div>
         
         <div className="relative overflow-visible" ref={containerRef}>
           <div onClick={() => setShowSearch(!showSearch)} className="ios-glass px-3.5 py-1.5 h-10 flex items-center gap-2.5 cursor-pointer hover:bg-white/10 transition-all shrink-0">
@@ -299,64 +375,83 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[25px] animate-in fade-in duration-300" onClick={() => setIsModalOpen(false)}>
-          <div className="w-full max-w-[420px] p-8 md:p-10 rounded-[3.5rem] ios-glass border border-white/20 shadow-2xl flex flex-col gap-6 relative overflow-visible max-h-[90vh] overflow-y-auto scrollbar-hide" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all z-10"><i className="fa-solid fa-xmark text-xs"></i></button>
-            {!horoscope ? (
-              <div className="py-6 flex flex-col items-center gap-6 text-center animate-in zoom-in-95 duration-500">
-                <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20"><i className="fa-solid fa-sparkles text-3xl text-indigo-400"></i></div>
-                <div>
-                  <h2 className="text-2xl font-black text-white tracking-tighter mb-2">Daily Horoscope</h2>
-                  <p className="text-[11px] text-white/40 leading-relaxed max-w-[240px] mx-auto">Select your birthday to get your horoscope for today.</p>
-                </div>
-                <div className="w-full"><GlassTripleDropdown value={birthDate} onChange={setBirthDate} /></div>
-                <button disabled={isSyncing} onClick={() => { if (birthDate) { localStorage.setItem('aura_birthdate', birthDate); fetchHoroscope(birthDate); } }} className="w-full py-4 ios-glass bg-white/10 border-white/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-white/20 active:scale-95 transition-all text-white flex items-center justify-center gap-3">
-                  {isSyncing ? <><div className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div><span>Loading...</span></> : "Show Horoscope"}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-5">
-                  <div className="w-24 h-24 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl shrink-0 relative"><div className="scale-110 translate-y-2"><ZodiacSVG sign={horoscope?.sign || 'Aries'} size={64} glow={true} /></div></div>
-                  <div className="flex-1 min-w-0"><h2 className="text-3xl font-black text-white tracking-tighter leading-none truncate">{horoscope?.sign}</h2><p className="text-[9px] font-black opacity-30 uppercase tracking-[0.2em] mt-2">Today's Theme: <span className="text-white/80">{horoscope?.summary}</span></p></div>
-                </div>
-                <div className="space-y-3"><div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div><p className="text-[13px] font-medium leading-snug text-white/90 italic tracking-tight py-1 min-h-[60px]">"{horoscope?.prediction}"</p></div>
-                
-                <div className="p-5 rounded-[2rem] bg-white/10 border border-white/10 flex flex-wrap justify-between gap-x-4 gap-y-2">
-                    {[{ label: 'Love', val: horoscope?.ratings.love }, { label: 'Work', val: horoscope?.ratings.work }, { label: 'Health', val: horoscope?.ratings.health }, { label: 'Wealth', val: horoscope?.ratings.wealth }].map(r => (
-                      <div key={r.label} className="flex justify-between items-center w-[45%]"><span className="text-[8px] font-black uppercase tracking-widest text-white/30">{r.label}</span><StarRating value={r.val || 0} /></div>
-                    ))}
-                </div>
-
-                {horoscope.sources && horoscope.sources.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2"><i className="fa-solid fa-link"></i> Sources</h4>
-                    <div className="flex flex-col gap-2">
-                      {horoscope.sources.slice(0, 3).map((source, idx) => (
-                        <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
-                          <span className="text-[10px] font-bold text-white/70 truncate pr-4 group-hover:text-indigo-300 transition-colors">{source.title}</span>
-                          <i className="fa-solid fa-arrow-up-right-from-square text-[8px] text-white/20 group-hover:text-white transition-all"></i>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-white/10 flex flex-col gap-5">
-                   <div className="flex justify-between items-center px-1">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Birthday Settings</span>
-                      <button disabled={isSyncing} onClick={() => fetchHoroscope(birthDate, true)} className="text-indigo-400 text-[9px] font-black uppercase hover:text-white transition-all flex items-center gap-2">
-                        {isSyncing && <div className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin"></div>}Refresh
-                      </button>
-                   </div>
-                   <div className="flex justify-center w-full"><GlassTripleDropdown value={birthDate} onChange={(val) => { setBirthDate(val); localStorage.setItem('aura_birthdate', val); }} /></div>
-                </div>
-              </>
-            )}
+      <StandardModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        maxWidth="440px"
+      >
+        {!horoscope ? (
+          <div className="py-6 flex flex-col items-center gap-6 text-center animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20"><i className="fa-solid fa-sparkles text-3xl text-indigo-400"></i></div>
+            <div>
+              <h2 className="text-2xl font-black text-white tracking-tighter mb-2">Daily Horoscope</h2>
+              <p className="text-[11px] text-white/40 leading-relaxed max-w-[240px] mx-auto">Select your birthday to get your horoscope for today.</p>
+            </div>
+            <div className="w-full"><GlassTripleDropdown value={birthDate} onChange={setBirthDate} /></div>
+            <button disabled={isSyncing} onClick={() => { if (birthDate) { localStorage.setItem('aura_birthdate', birthDate); fetchHoroscope(birthDate); } }} className="w-full py-5 ios-glass bg-white/10 border-white/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-white/20 active:scale-95 transition-all text-white flex items-center justify-center gap-3">
+              {isSyncing ? <><div className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div><span>Loading...</span></> : "Show Horoscope"}
+            </button>
           </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center gap-5">
+              <div className="w-24 h-24 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl shrink-0 relative"><div className="scale-110 translate-y-2"><ZodiacSVG sign={horoscope?.sign || 'Aries'} size={64} glow={true} /></div></div>
+              <div className="flex-1 min-w-0"><h2 className="text-3xl font-black text-white tracking-tighter leading-none truncate">{horoscope?.sign}</h2><p className="text-[9px] font-black opacity-30 uppercase tracking-[0.2em] mt-2">Today's Theme: <span className="text-white/80">{horoscope?.summary}</span></p></div>
+            </div>
+            <div className="space-y-3"><div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div><p className="text-[13px] font-medium leading-snug text-white/90 italic tracking-tight py-1 min-h-[60px]">"{horoscope?.prediction}"</p></div>
+            
+            <div className="p-6 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-wrap justify-between gap-x-4 gap-y-3">
+                {[{ label: 'Love', val: horoscope?.ratings.love }, { label: 'Work', val: horoscope?.ratings.work }, { label: 'Health', val: horoscope?.ratings.health }, { label: 'Wealth', val: horoscope?.ratings.wealth }].map(r => (
+                  <div key={r.label} className="flex justify-between items-center w-full sm:w-[46%]"><span className="text-[8px] font-black uppercase tracking-widest text-white/30">{r.label}</span><StarRating value={r.val || 0} /></div>
+                ))}
+            </div>
+
+            {horoscope.sources && horoscope.sources.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2"><i className="fa-solid fa-link"></i> Sources</h4>
+                <div className="flex flex-col gap-2">
+                  {horoscope.sources.slice(0, 3).map((source, idx) => (
+                    <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
+                      <span className="text-[10px] font-bold text-white/70 truncate pr-4 group-hover:text-indigo-300 transition-colors">{source.title}</span>
+                      <i className="fa-solid fa-arrow-up-right-from-square text-[8px] text-white/20 group-hover:text-white transition-all"></i>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-6 border-t border-white/10 flex flex-col gap-6">
+               <div className="flex justify-between items-center px-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Birthday Settings</span>
+                  <button disabled={isSyncing} onClick={() => fetchHoroscope(birthDate, true)} className="text-indigo-400 text-[9px] font-black uppercase hover:text-white transition-all flex items-center gap-2">
+                    {isSyncing && <div className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin"></div>}Refresh
+                  </button>
+               </div>
+               <div className="flex justify-center w-full"><GlassTripleDropdown value={birthDate} onChange={(val) => { setBirthDate(val); localStorage.setItem('aura_birthdate', val); }} /></div>
+            </div>
+          </div>
+        )}
+      </StandardModal>
+
+      <StandardModal 
+        isOpen={isFocusModalOpen} 
+        onClose={() => setIsFocusModalOpen(false)}
+        title="Focus Session"
+        maxWidth="420px"
+      >
+        <div className="py-12 flex flex-col items-center gap-8 text-center animate-in zoom-in-95 duration-500">
+           <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center border border-white/10 relative">
+              <i className="fa-solid fa-clock text-4xl text-white/20"></i>
+              <div className="absolute inset-0 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+           </div>
+           <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white tracking-tight">Stay Focused</h3>
+              <p className="text-[11px] text-white/40 leading-relaxed max-w-[280px]">Session settings and deep-work analytics will appear here soon. Keep the momentum going!</p>
+           </div>
+           <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+           <button onClick={() => setIsFocusModalOpen(false)} className="px-10 py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all border border-white/10">Configure Timer</button>
         </div>
-      )}
+      </StandardModal>
     </header>
   );
 };

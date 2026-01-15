@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CalendarEvent } from '../../types';
 import GlassDatePicker from '../ui/GlassDatePicker';
 import { GLOBAL_HOLIDAYS, REGIONAL_ECOM_FESTIVALS } from '../../holidayData';
+import StandardModal from '../ui/StandardModal';
 
 const HOUR_HEIGHT = 70; 
 const START_HOUR = 7;
@@ -36,7 +37,7 @@ const GlassTimePicker = ({ value, onChange, label }: { value: string, onChange: 
         <i className="fa-solid fa-clock text-[10px] opacity-40"></i>
       </div>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-[1001] !bg-black/90 backdrop-blur-xl rounded-[2rem] p-4 shadow-2xl border border-white/20 w-[240px] flex gap-2 h-48">
+        <div className="absolute top-full left-0 mt-2 z-[2000] !bg-black/95 backdrop-blur-2xl rounded-[2rem] p-4 shadow-2xl border border-white/20 w-[240px] flex gap-2 h-48">
           <div className="flex-1 overflow-y-auto scrollbar-hide py-2 space-y-1">
              {hours.map(h => (<button key={h} type="button" onClick={() => updateTime(h, String(minute).padStart(2,'0'), period)} className={`w-full py-2 rounded-xl text-[11px] font-black ${hour12 === h ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/30' : 'text-white/40 hover:text-white'}`}>{String(h).padStart(2, '0')}</button>))}
           </div>
@@ -68,7 +69,7 @@ const GlassSelect = ({ value, onChange, options, label }: { value: string, onCha
         <i className={`fa-solid fa-chevron-down text-[10px] transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
       </div>
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-[900] !bg-black/90 backdrop-blur-xl rounded-2xl overflow-hidden p-1 shadow-2xl border border-white/10">
+        <div className="absolute top-full left-0 right-0 mt-2 z-[2000] !bg-black/95 backdrop-blur-2xl rounded-2xl overflow-hidden p-1 shadow-2xl border border-white/10">
           <div className="max-h-48 overflow-y-auto scrollbar-hide">
             {options.map(opt => (
               <div key={opt.value} onClick={() => { onChange(opt.value); setIsOpen(false); }} className={`p-3 text-[11px] font-black uppercase tracking-tight rounded-xl cursor-pointer transition-all ${value === opt.value ? 'bg-white/20 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>{opt.label}</div>
@@ -194,7 +195,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
 
   return (
     <div className="ios-glass p-6 md:p-8 h-full flex flex-col xl:flex-row gap-8 relative overflow-hidden">
-      <div className={`flex flex-col xl:flex-row gap-8 w-full h-full transition-all duration-700 rounded-[inherit] ${isAnyModalOpen ? 'content-blur-active' : ''}`}>
+      <div className={`flex flex-col xl:flex-row gap-8 w-full h-full transition-all duration-100 rounded-[inherit] ${isAnyModalOpen ? 'content-blur-active' : ''}`}>
         <div className="xl:w-[68%] flex flex-col h-full overflow-visible">
           <div className="flex justify-between items-start mb-4 shrink-0 px-2">
             <div className="flex flex-col">
@@ -246,7 +247,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
                   )}
 
                   {(festivalsOnThisDay.length > 0 || dayEventsList.length > 0) && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 p-4 !bg-black/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[500] border border-white/20 translate-y-2 group-hover:translate-y-0">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 p-4 !bg-black/95 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[500] border border-white/20 translate-y-2 group-hover:translate-y-0">
                       {festivalsOnThisDay.map((f, idx) => (
                          <div key={idx} className={`mb-2 pb-2 border-b border-white/10 last:border-0 ${idx > 0 ? 'mt-2' : ''}`}>
                            <span className={`text-[10px] font-black uppercase tracking-widest ${f.type === 'ecom' ? 'text-rose-400' : 'text-amber-400'}`}>{f.name}</span>
@@ -318,7 +319,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
                       setFormCategory(e.category);
                       setIsModalOpen(true);
                     }}
-                    className={`absolute p-3 ios-glass bg-white/5 rounded-2xl border-l-4 transition-all cursor-pointer overflow-hidden z-10 hover:bg-white/10 group
+                    className={`absolute p-3 ios-glass bg-white/5 rounded-2xl border-l-4 transition-all duration-200 cursor-pointer overflow-hidden z-10 hover:bg-white/10 group
                       ${e.category === 'work' ? 'border-l-indigo-500' : (e.category === 'health' ? 'border-l-rose-500' : 'border-l-emerald-500')}
                     `}
                     style={{ 
@@ -338,53 +339,49 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
         </div>
       </div>
 
-      {isCountryModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[15px] animate-in fade-in duration-300" onClick={() => setIsCountryModalOpen(false)}>
-            <div className="w-full max-w-xl p-10 rounded-[3.5rem] ios-glass border border-white/20 animate-in zoom-in-95 duration-300 shadow-2xl relative overflow-visible" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-10">
-                  <h3 className="text-[1.2rem] font-black text-white uppercase tracking-[0.4em]">Global Regions</h3>
-                  <button onClick={() => setIsCountryModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"><i className="fa-solid fa-xmark text-white/40"></i></button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto scrollbar-hide p-1">
-                    {countryOptions.map(opt => (
-                        <button key={opt.value} onClick={() => { setSelectedCountry(opt.value); setIsCountryModalOpen(false); }} className={`p-6 rounded-[2rem] text-[13px] font-black uppercase tracking-widest flex items-center justify-between border transition-all ${selectedCountry === opt.value ? 'bg-white/15 border-white/40 text-white shadow-xl' : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10 hover:text-white/80'}`}>
-                            {opt.label}
-                            {selectedCountry === opt.value && <i className="fa-solid fa-check text-indigo-400 text-xs"></i>}
-                        </button>
-                    ))}
-                </div>
-            </div>
+      <StandardModal 
+        isOpen={isCountryModalOpen} 
+        onClose={() => setIsCountryModalOpen(false)}
+        title="Global Regions"
+        maxWidth="580px"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto scrollbar-hide p-1">
+            {countryOptions.map(opt => (
+                <button key={opt.value} onClick={() => { setSelectedCountry(opt.value); setIsCountryModalOpen(false); }} className={`p-6 rounded-[2rem] text-[13px] font-black uppercase tracking-widest flex items-center justify-between border transition-all ${selectedCountry === opt.value ? 'bg-white/15 border-white/40 text-white shadow-xl' : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10 hover:text-white/80'}`}>
+                    {opt.label}
+                    {selectedCountry === opt.value && <i className="fa-solid fa-check text-indigo-400 text-xs"></i>}
+                </button>
+            ))}
         </div>
-      )}
+      </StandardModal>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[15px] animate-in fade-in duration-300" onClick={() => setIsModalOpen(false)}>
-           <form onSubmit={handleSave} className="w-full max-w-md p-10 rounded-[3.5rem] ios-glass border border-white/20 space-y-8 animate-in zoom-in-95 duration-300 shadow-2xl relative overflow-visible" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-black text-white tracking-tighter">{editingEvent ? 'Edit Event' : 'Add Event'}</h3>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10 text-white/40 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] block text-white/30">Title</label>
-                <input value={formTitle} onChange={e => setFormTitle(e.target.value)} autoFocus className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-lg font-bold text-white outline-none focus:bg-white/10 transition-all" placeholder="Enter Title..." />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <GlassDatePicker label="Date" value={formDate} onChange={setFormDate} />
-                <GlassSelect label="Category" value={formCategory} onChange={v => setFormCategory(v as any)} options={[{value:'work',label:'Work'},{value:'personal',label:'Personal'},{value:'health',label:'Wellness'}]} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <GlassTimePicker label="Start Time" value={formStart} onChange={setFormStart} />
-                <GlassTimePicker label="End Time" value={formEnd} onChange={setFormEnd} />
-              </div>
-              <div className="flex gap-4 pt-4">
-                {editingEvent && (
-                  <button type="button" onClick={() => { setEvents(events.filter(ev => ev.id !== editingEvent.id)); setIsModalOpen(false); }} className="px-6 py-5 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-300 font-black uppercase tracking-widest text-[9px] hover:bg-rose-500/30 transition-all">Delete</button>
-                )}
-                <button type="submit" className="flex-1 py-5 ios-glass bg-white/10 border-white/30 hover:bg-white/20 font-black uppercase tracking-[0.4em] text-xs shadow-2xl active:scale-95 transition-all text-white">Save Event</button>
-              </div>
-           </form>
-        </div>
-      )}
+      <StandardModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        title={editingEvent ? 'Edit Event' : 'Add Event'}
+        maxWidth="460px"
+      >
+        <form onSubmit={handleSave} className="space-y-8 !overflow-visible">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] block text-white/30">Title</label>
+            <input value={formTitle} onChange={e => setFormTitle(e.target.value)} autoFocus className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-lg font-bold text-white outline-none focus:bg-white/10 transition-all" placeholder="Enter Title..." />
+          </div>
+          <div className="grid grid-cols-2 gap-4 !overflow-visible">
+            <GlassDatePicker label="Date" value={formDate} onChange={setFormDate} />
+            <GlassSelect label="Category" value={formCategory} onChange={v => setFormCategory(v as any)} options={[{value:'work',label:'Work'},{value:'personal',label:'Personal'},{value:'health',label:'Wellness'}]} />
+          </div>
+          <div className="grid grid-cols-2 gap-4 !overflow-visible">
+            <GlassTimePicker label="Start Time" value={formStart} onChange={setFormStart} />
+            <GlassTimePicker label="End Time" value={formEnd} onChange={setFormEnd} />
+          </div>
+          <div className="flex gap-4 pt-4">
+            {editingEvent && (
+              <button type="button" onClick={() => { setEvents(events.filter(ev => ev.id !== editingEvent.id)); setIsModalOpen(false); }} className="px-6 py-5 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-300 font-black uppercase tracking-widest text-[9px] hover:bg-rose-500/30 transition-all">Delete</button>
+            )}
+            <button type="submit" className="flex-1 py-5 ios-glass bg-white/10 border-white/30 hover:bg-white/20 font-black uppercase tracking-[0.4em] text-xs shadow-2xl active:scale-95 transition-all text-white">Save Event</button>
+          </div>
+        </form>
+      </StandardModal>
     </div>
   );
 };

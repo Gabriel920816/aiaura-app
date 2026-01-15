@@ -1,28 +1,37 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAIClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const key = process.env.API_KEY;
+  if (!key) {
+    console.error("Aura Error: API_KEY is missing. Please check your Netlify environment variables.");
+  }
+  return new GoogleGenAI({ apiKey: key as string });
 };
 
-// Simple string-to-integer hash for deterministic seeding
+// 简单的确定性种子生成器
 const generateSeed = (str: string): number => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash);
 };
 
-const fetchWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 1500) => {
+// 增强的重试逻辑，针对 429 错误进行指数级退避
+const fetchWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 3000) => {
   try {
     return await fn();
   } catch (error: any) {
-    const isRetryable = error?.status === 429 || error?.status >= 500 || error?.message?.includes('quota');
-    if (retries > 0 && isRetryable) {
-      await new Promise(r => setTimeout(r, delay));
-      return fetchWithRetry(fn, retries - 1, delay * 2);
+    const errorMsg = error?.message || "";
+    const isRateLimited = errorMsg.includes("429") || errorMsg.includes("quota") || error?.status === 429;
+    
+    if (retries > 0 && isRateLimited) {
+      console.warn(`Aura API: Rate limited (429). Retrying in ${delay/1000}s...`);
+      await new Promise(r => setTimeout(r, delay + Math.random() * 1000));
+      return fetchWithRetry(fn, retries - 1, delay * 2.5);
     }
     throw error;
   }
@@ -49,7 +58,7 @@ export const getZodiacSign = (date: string) => {
 
 export const generateHoroscope = async (sign: string, birthDate: string, forceRefresh = false) => {
   const today = new Date().toISOString().split('T')[0];
-  const cacheKey = `aura_horoscope_v6_consistent_${sign}_${today}`;
+  const cacheKey = `aura_horoscope_v7_${sign}_${today}`;
   const cached = localStorage.getItem(cacheKey);
   
   if (cached && !forceRefresh) {
@@ -61,27 +70,23 @@ export const generateHoroscope = async (sign: string, birthDate: string, forceRe
 
   try {
     const response = await fetchWithRetry(async () => {
+      // 统一使用 gemini-3-flash-preview 以获得更高的 RPM 限额
       const res = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Today is ${today}. 
-        Act as a professional mathematical astrologer.
-        1. Search for current real-time planetary positions and aspects affecting ${sign} today.
-        2. Strictly CALCULATE the ratings (1-5) based on current celestial intensity.
-        3. The 'summary' field MUST be exactly one word (a noun or adjective) representing the theme of the day (e.g., 'Prosperity', 'Reflection', 'Dynamic', 'Balance').
-        
-        Provide the response in JSON format. Ensure the prediction is grounded in the search data.`,
+        model: 'gemini-3-flash-preview',
+        contents: `Current Date: ${today}. 
+        Subject: ${sign} zodiac.
+        Task: Provide a sophisticated daily horoscope based on current astrological movements.
+        Strictly use JSON format. 
+        Theme summary must be exactly 1 word.`,
         config: {
           tools: [{ googleSearch: {} }],
-          temperature: 0.0,
+          temperature: 0.2,
           seed: seed,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              summary: { 
-                type: Type.STRING, 
-                description: "A single word summarizing the day's theme (e.g., 'Clarity', 'Hustle', 'Peace')." 
-              },
+              summary: { type: Type.STRING },
               prediction: { type: Type.STRING },
               luckyNumber: { type: Type.STRING },
               luckyColor: { type: Type.STRING },
@@ -102,7 +107,6 @@ export const generateHoroscope = async (sign: string, birthDate: string, forceRe
       });
       
       const jsonContent = JSON.parse(res.text || '{}');
-      
       const chunks = res.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const sources = chunks
         .map(c => c.web)
@@ -115,13 +119,14 @@ export const generateHoroscope = async (sign: string, birthDate: string, forceRe
     localStorage.setItem(cacheKey, JSON.stringify(response));
     return response;
   } catch (error) {
-    console.warn("Horoscope API failed, using fallback.");
+    console.error("Horoscope API Critical Failure:", error);
+    // 即使完全失败，也要提供一个有意义的回退，而不是直接报错
     return { 
-      summary: "Mystery",
-      prediction: "The stars are currently aligning in a complex geometric pattern that resists simple interpretation. Trust your intuition today.", 
-      luckyNumber: "7", 
-      luckyColor: "Deep Indigo",
-      ratings: { love: 3, work: 3, health: 3, wealth: 3 },
+      summary: "Evolving",
+      prediction: "The cosmic alignment today suggests a period of internal growth. Focus on your immediate surroundings and trust your instincts.", 
+      luckyNumber: "11", 
+      luckyColor: "Silver Grey",
+      ratings: { love: 4, work: 3, health: 4, wealth: 3 },
       sources: []
     };
   }
@@ -131,9 +136,13 @@ export const processAssistantQuery = async (query: string, currentContext: any) 
   const ai = getAIClient();
   try {
     return await fetchWithRetry(async () => {
+      // 统一使用 gemini-3-flash-preview
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `You are Aura AI. Context: ${JSON.stringify(currentContext)}. User asked: "${query}". Respond in JSON.`,
+        model: 'gemini-3-flash-preview',
+        contents: `Identity: Aura AI. 
+        Context: ${JSON.stringify(currentContext)}. 
+        User Message: "${query}". 
+        Response must be JSON.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -144,7 +153,7 @@ export const processAssistantQuery = async (query: string, currentContext: any) 
                 type: Type.OBJECT,
                 properties: {
                   type: { type: Type.STRING, enum: ["ADD_EVENT", "CHANGE_COUNTRY", "NONE"] },
-                  data: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, date: { type: Type.STRING }, startTime: { type: Type.STRING }, endTime: { type: Type.STRING }, country: { type: Type.STRING } } }
+                  data: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, date: { type: Type.STRING }, startTime: { type: Type.STRING }, endTime: { type: Type.STRING } } }
                 },
                 required: ["type"]
               }
@@ -156,6 +165,10 @@ export const processAssistantQuery = async (query: string, currentContext: any) 
       return JSON.parse(response.text || '{}');
     });
   } catch (error) {
-    throw new Error("API Limit Reached");
+    console.error("Assistant Query Critical Failure:", error);
+    return {
+      reply: "I'm currently adjusting my cosmic sensors. Please try again in a moment.",
+      action: { type: "NONE" }
+    };
   }
 };
