@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const getAIClient = () => {
   const key = process.env.API_KEY;
@@ -9,6 +9,7 @@ const getAIClient = () => {
   return new GoogleGenAI({ apiKey: key as string });
 };
 
+// 简单的确定性种子生成器
 const generateSeed = (str: string): number => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -19,6 +20,7 @@ const generateSeed = (str: string): number => {
   return Math.abs(hash);
 };
 
+// 增强的重试逻辑，针对 429 错误进行指数级退避
 const fetchWithRetry = async (fn: () => Promise<any>, retries = 3, delay = 3000) => {
   try {
     return await fn();
@@ -54,36 +56,9 @@ export const getZodiacSign = (date: string) => {
   return "Pisces";
 };
 
-// 解析非 JSON 响应的辅助函数
-const parseHoroscopeResponse = (text: string) => {
-  const getVal = (regex: RegExp, fallback: string) => {
-    const match = text.match(regex);
-    return match ? match[1].trim() : fallback;
-  };
-
-  const getNum = (regex: RegExp, fallback: number) => {
-    const val = getVal(regex, "");
-    const parsed = parseInt(val);
-    return isNaN(parsed) ? fallback : Math.min(5, Math.max(1, parsed));
-  };
-
-  return {
-    summary: getVal(/SUMMARY:\s*(.*)/i, "Evolving"),
-    prediction: getVal(/PREDICTION:\s*([\s\S]*?)(?=\n[A-Z_]+:|$)/i, "The cosmic energies are aligning in your favor today."),
-    luckyNumber: getVal(/LUCKY_NUMBER:\s*(.*)/i, "7"),
-    luckyColor: getVal(/LUCKY_COLOR:\s*(.*)/i, "Gold"),
-    ratings: {
-      love: getNum(/LOVE_RATING:\s*(.*)/i, 4),
-      work: getNum(/WORK_RATING:\s*(.*)/i, 4),
-      health: getNum(/HEALTH_RATING:\s*(.*)/i, 4),
-      wealth: getNum(/WEALTH_RATING:\s*(.*)/i, 4),
-    }
-  };
-};
-
 export const generateHoroscope = async (sign: string, birthDate: string, forceRefresh = false) => {
   const today = new Date().toISOString().split('T')[0];
-  const cacheKey = `aura_horoscope_v8_${sign}_${today}`;
+  const cacheKey = `aura_horoscope_v7_${sign}_${today}`;
   const cached = localStorage.getItem(cacheKey);
   
   if (cached && !forceRefresh) {
@@ -94,50 +69,64 @@ export const generateHoroscope = async (sign: string, birthDate: string, forceRe
   const seed = generateSeed(`${sign}-${today}`);
 
   try {
-    const responseData = await fetchWithRetry(async () => {
-      // 开启搜索模式时，不能使用 JSON 模式
+    const response = await fetchWithRetry(async () => {
+      // 统一使用 gemini-3-flash-preview 以获得更高的 RPM 限额
       const res = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Today is ${today}. Sign: ${sign}. 
-        Provide a daily horoscope using REAL astronomical data for today.
-        Respond exactly in this format:
-        SUMMARY: [one word theme]
-        PREDICTION: [2-3 sentences of actual astrological advice]
-        LOVE_RATING: [1-5]
-        WORK_RATING: [1-5]
-        HEALTH_RATING: [1-5]
-        WEALTH_RATING: [1-5]
-        LUCKY_NUMBER: [number]
-        LUCKY_COLOR: [color]`,
+        model: 'gemini-3-flash-preview',
+        contents: `Current Date: ${today}. 
+        Subject: ${sign} zodiac.
+        Task: Provide a sophisticated daily horoscope based on current astrological movements.
+        Strictly use JSON format. 
+        Theme summary must be exactly 1 word.`,
         config: {
           tools: [{ googleSearch: {} }],
-          temperature: 0.3,
-          seed: seed
+          temperature: 0.2,
+          seed: seed,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              summary: { type: Type.STRING },
+              prediction: { type: Type.STRING },
+              luckyNumber: { type: Type.STRING },
+              luckyColor: { type: Type.STRING },
+              ratings: {
+                type: Type.OBJECT,
+                properties: {
+                  love: { type: Type.NUMBER },
+                  work: { type: Type.NUMBER },
+                  health: { type: Type.NUMBER },
+                  wealth: { type: Type.NUMBER }
+                },
+                required: ["love", "work", "health", "wealth"]
+              }
+            },
+            required: ["summary", "prediction", "luckyNumber", "luckyColor", "ratings"]
+          }
         }
       });
       
-      const rawText = res.text || "";
-      const parsedData = parseHoroscopeResponse(rawText);
-      
+      const jsonContent = JSON.parse(res.text || '{}');
       const chunks = res.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const sources = chunks
         .map(c => c.web)
         .filter((w): w is { title: string; uri: string } => !!(w && w.title && w.uri))
         .map(w => ({ title: w.title, uri: w.uri }));
 
-      return { ...parsedData, sources };
+      return { ...jsonContent, sources };
     });
 
-    localStorage.setItem(cacheKey, JSON.stringify(responseData));
-    return responseData;
+    localStorage.setItem(cacheKey, JSON.stringify(response));
+    return response;
   } catch (error) {
     console.error("Horoscope API Critical Failure:", error);
+    // 即使完全失败，也要提供一个有意义的回退，而不是直接报错
     return { 
-      summary: "Dynamic",
-      prediction: "The stars suggest a day of balanced energy. Trust your intuition and move forward with confidence.", 
-      luckyNumber: "8", 
-      luckyColor: "Deep Blue",
-      ratings: { love: 4, work: 4, health: 4, wealth: 4 },
+      summary: "Evolving",
+      prediction: "The cosmic alignment today suggests a period of internal growth. Focus on your immediate surroundings and trust your instincts.", 
+      luckyNumber: "11", 
+      luckyColor: "Silver Grey",
+      ratings: { love: 4, work: 3, health: 4, wealth: 3 },
       sources: []
     };
   }
@@ -147,6 +136,7 @@ export const processAssistantQuery = async (query: string, currentContext: any) 
   const ai = getAIClient();
   try {
     return await fetchWithRetry(async () => {
+      // 统一使用 gemini-3-flash-preview
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Identity: Aura AI. 
@@ -154,12 +144,28 @@ export const processAssistantQuery = async (query: string, currentContext: any) 
         User Message: "${query}". 
         Response must be JSON.`,
         config: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              reply: { type: Type.STRING },
+              action: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING, enum: ["ADD_EVENT", "CHANGE_COUNTRY", "NONE"] },
+                  data: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, date: { type: Type.STRING }, startTime: { type: Type.STRING }, endTime: { type: Type.STRING } } }
+                },
+                required: ["type"]
+              }
+            },
+            required: ["reply", "action"]
+          }
         }
       });
       return JSON.parse(response.text || '{}');
     });
   } catch (error) {
+    console.error("Assistant Query Critical Failure:", error);
     return {
       reply: "I'm currently adjusting my cosmic sensors. Please try again in a moment.",
       action: { type: "NONE" }
