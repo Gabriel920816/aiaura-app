@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarEvent, TodoItem, PeriodRecord } from './types';
 import Dashboard from './components/Dashboard';
 import AssistantBubble from './components/AssistantBubble';
 import HeaderWidgets from './components/HeaderWidgets';
 import WeatherBackground from './components/WeatherBackground';
+import { FocusModalContent } from './components/FocusTimerSystem';
 
 const App: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -14,7 +15,12 @@ const App: React.FC = () => {
   const [selectedCountry, setSelectedCountry] = useState<string>('Australia');
   const [bgImage, setBgImage] = useState<string>('https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=2560');
   
-  // 核心提升：全局选择的日期
+  // --- 全局计时器状态 ---
+  const [timerLeft, setTimerLeft] = useState(25 * 60);
+  const [timerMax, setTimerMax] = useState(25 * 60);
+  const [timerActive, setTimerActive] = useState(false);
+  const [isTimerImmersed, setIsTimerImmersed] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [todayKey, setTodayKey] = useState<string>(new Date().toDateString());
 
@@ -25,30 +31,30 @@ const App: React.FC = () => {
     location: 'Detecting...'
   });
 
-  const [lastCoords, setLastCoords] = useState<{lat: number, lon: number, name: string} | null>(null);
-
-  const updateWeather = async (lat: number, lon: number, locationName: string, retries = 3) => {
-    if (isNaN(lat) || isNaN(lon)) return;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-    for (let i = 0; i < retries; i++) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        const data = await res.json();
-        const code = data.current_weather.weathercode;
-        let cond = 'Clear';
-        if (code >= 1 && code <= 3) cond = 'Cloudy';
-        else if (code >= 51 && code <= 67) cond = 'Rain';
-        else if (code >= 71 && code <= 77) cond = 'Snow';
-        else if (code >= 80) cond = 'Rain';
-        setWeather({ temp: Math.round(data.current_weather.temperature), code, condition: cond, location: locationName });
-        setLastCoords({ lat, lon, name: locationName });
-        return;
-      } catch (e) {
-        if (i === retries - 1) console.error("Weather failed:", e);
-        else await new Promise(r => setTimeout(r, 1500 * (i + 1)));
-      }
+  // 核心计时逻辑
+  useEffect(() => {
+    let t: any;
+    if (timerActive && timerLeft > 0) {
+      t = setInterval(() => setTimerLeft(prev => prev - 1), 1000);
+    } else if (timerLeft === 0) {
+      setTimerActive(false);
+      try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play(); } catch(e){}
     }
+    return () => clearInterval(t);
+  }, [timerActive, timerLeft]);
+
+  const updateWeather = async (lat: number, lon: number, locationName: string) => {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const code = data.current_weather.weathercode;
+      let cond = 'Clear';
+      if (code >= 1 && code <= 3) cond = 'Cloudy';
+      else if (code >= 51 && code <= 67) cond = 'Rain';
+      else if (code >= 71 && code <= 77) cond = 'Snow';
+      setWeather({ temp: Math.round(data.current_weather.temperature), code, condition: cond, location: locationName });
+    } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
@@ -69,14 +75,6 @@ const App: React.FC = () => {
       (pos) => updateWeather(pos.coords.latitude, pos.coords.longitude, 'Nearby'),
       () => updateWeather(-33.8688, 151.2093, 'Sydney')
     );
-
-    const midnightCheck = setInterval(() => {
-      const current = new Date().toDateString();
-      if (todayKey !== current) {
-        setTodayKey(current);
-      }
-    }, 60000);
-    return () => clearInterval(midnightCheck);
   }, []);
 
   useEffect(() => { localStorage.setItem('aura_events', JSON.stringify(events)); }, [events]);
@@ -88,19 +86,26 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black" key={todayKey}>
+      {/* 背景层 - 沉浸模式不虚化 */}
       <div 
-        className="fixed inset-0 z-0 transition-all duration-1000"
-        style={{ backgroundImage: `url('${bgImage}')`, backgroundPosition: 'center', backgroundSize: 'cover' }}
+        className="fixed inset-0 z-0 transition-transform duration-1000 ease-in-out"
+        style={{ 
+          backgroundImage: `url('${bgImage}')`, 
+          backgroundPosition: 'center', 
+          backgroundSize: 'cover' 
+        }}
       >
         <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"></div>
       </div>
 
       <WeatherBackground condition={weather.condition} />
 
-      <div className="dashboard-container relative z-10 border-none bg-transparent">
+      {/* 主界面容器 - 沉浸模式时缩放隐藏 */}
+      <div className={`dashboard-container relative z-10 border-none bg-transparent transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${isTimerImmersed ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
         <HeaderWidgets 
           showHealth={showHealth} setShowHealth={setShowHealth} setBgImage={setBgImage}
           weatherData={weather} onSetLocation={updateWeather}
+          timerState={{ timerLeft, timerMax, timerActive, setTimerActive, setTimerLeft, setTimerMax, setIsTimerImmersed }}
         />
         <main className="min-h-0 flex-1">
           <Dashboard 
@@ -118,6 +123,27 @@ const App: React.FC = () => {
           onSetCountry={setSelectedCountry} 
         />
       </div>
+
+      {/* 沉浸模式叠加层 - 调整缩放至更优雅的 1.1x - 1.4x */}
+      {isTimerImmersed && (
+        <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center animate-in fade-in duration-1000">
+           <button 
+             onClick={() => setIsTimerImmersed(false)}
+             className="absolute top-10 right-10 text-white/40 hover:text-white transition-all text-sm font-black tracking-[0.4em] flex items-center gap-2 group p-4"
+           >
+             <i className="fa-solid fa-xmark text-xs"></i>
+             EXIT
+           </button>
+
+           <div className="scale-110 md:scale-[1.35] transform-gpu">
+             <FocusModalContent 
+               timerLeft={timerLeft} timerMax={timerMax} timerActive={timerActive}
+               setTimerActive={setTimerActive} setTimerLeft={setTimerLeft} setTimerMax={setTimerMax}
+               isImmersive={true}
+             />
+           </div>
+        </div>
+      )}
     </div>
   );
 };

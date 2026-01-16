@@ -6,6 +6,7 @@ import FocusWidget from './widgets/FocusWidget';
 import WeatherIcon from './WeatherIcon';
 import BigClock from './widgets/BigClock';
 import StandardModal from './ui/StandardModal';
+import { FocusModalContent } from './FocusTimerSystem';
 
 const ZODIAC_META: Record<string, { color: string; path: string }> = {
   Aries: { color: '#FF4136', path: "M7 2a5 5 0 0 1 10 0v2l-5 4-5-4V2zm0 20v-8l5 4 5-4v8H7z" },
@@ -84,7 +85,7 @@ const GlassTripleDropdown = ({ value, onChange }: { value: string, onChange: (va
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   
   const update = (ny = y, nm = m, nd = d) => { 
-    onChange(`${ny}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`); 
+    onChange(`${ny}-${String(nm).padStart(2, '0')}:${String(nd).padStart(2, '0')}`); 
   };
 
   return (
@@ -102,9 +103,18 @@ interface HeaderWidgetsProps {
   setBgImage: (url: string) => void;
   weatherData?: { temp: number, code: number, condition: string, location: string };
   onSetLocation: (lat: number, lon: number, name: string) => void;
+  timerState: {
+    timerLeft: number;
+    timerMax: number;
+    timerActive: boolean;
+    setTimerActive: (a: boolean) => void;
+    setTimerLeft: (t: number) => void;
+    setTimerMax: (t: number) => void;
+    setIsTimerImmersed: (i: boolean) => void;
+  };
 }
 
-const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth, setBgImage, weatherData, onSetLocation }) => {
+const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth, setBgImage, weatherData, onSetLocation, timerState }) => {
   const [horoscope, setHoroscope] = useState<HoroscopeData | null>(null);
   const [birthDate, setBirthDate] = useState<string>(localStorage.getItem('aura_birthdate') || '');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -115,7 +125,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
-  // 自定义背景状态
   const [customBgUrl, setCustomBgUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -241,54 +250,16 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
                           ))}
                       </div>
                     </div>
-
                     <div className="h-px w-full bg-white/10"></div>
-
                     <div>
                       <h4 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3 px-1">Personalize</h4>
                       <div className="space-y-3">
-                        {/* URL 输入 */}
                         <div className="relative flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="Image URL..." 
-                            value={customBgUrl}
-                            onChange={(e) => setCustomBgUrl(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && customBgUrl.trim()) {
-                                setBgImage(customBgUrl.trim());
-                                setShowBgPicker(false);
-                              }
-                            }}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] outline-none focus:bg-white/10 focus:border-white/30 transition-all placeholder:opacity-30 text-white font-bold"
-                          />
-                          <button 
-                            disabled={!customBgUrl.trim()}
-                            onClick={() => {
-                              setBgImage(customBgUrl.trim());
-                              setShowBgPicker(false);
-                            }}
-                            className="w-10 h-10 ios-glass bg-white/5 flex items-center justify-center border border-white/10 hover:bg-white/15 transition-all disabled:opacity-30"
-                          >
-                            <i className="fa-solid fa-arrow-right text-[10px]"></i>
-                          </button>
+                          <input type="text" placeholder="Image URL..." value={customBgUrl} onChange={(e) => setCustomBgUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && customBgUrl.trim()) { setBgImage(customBgUrl.trim()); setShowBgPicker(false); } }} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] outline-none focus:bg-white/10 focus:border-white/30 transition-all placeholder:opacity-30 text-white font-bold" />
+                          <button disabled={!customBgUrl.trim()} onClick={() => { setBgImage(customBgUrl.trim()); setShowBgPicker(false); }} className="w-10 h-10 ios-glass bg-white/5 flex items-center justify-center border border-white/10 hover:bg-white/15 transition-all disabled:opacity-30"><i className="fa-solid fa-arrow-right text-[10px]"></i></button>
                         </div>
-                        
-                        {/* 文件上传 */}
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          onChange={handleFileUpload} 
-                          accept="image/*" 
-                          className="hidden" 
-                        />
-                        <button 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full h-10 ios-glass bg-white/5 flex items-center justify-center gap-3 border border-white/10 hover:bg-white/15 transition-all group"
-                        >
-                          <i className="fa-solid fa-cloud-arrow-up text-[10px] opacity-40 group-hover:opacity-100 transition-opacity"></i>
-                          <span className="text-[9px] font-black uppercase tracking-widest">Upload local image</span>
-                        </button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                        <button onClick={() => fileInputRef.current?.click()} className="w-full h-10 ios-glass bg-white/5 flex items-center justify-center gap-3 border border-white/10 hover:bg-white/15 transition-all group"><i className="fa-solid fa-cloud-arrow-up text-[10px] opacity-40 group-hover:opacity-100 transition-opacity"></i><span className="text-[9px] font-black uppercase tracking-widest">Upload local image</span></button>
                       </div>
                     </div>
                   </div>
@@ -306,7 +277,12 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
           onClick={() => setIsFocusModalOpen(true)}
           className="ios-glass px-4 py-1.5 h-10 flex items-center shrink-0 cursor-pointer hover:bg-white/10 transition-all"
         >
-          <FocusWidget isCompact />
+          <FocusWidget 
+            timerLeft={timerState.timerLeft} 
+            timerActive={timerState.timerActive} 
+            setTimerActive={timerState.setTimerActive}
+            resetTimer={() => { timerState.setTimerActive(false); timerState.setTimerLeft(timerState.timerMax); }}
+          />
         </div>
         
         <div className="relative overflow-visible" ref={containerRef}>
@@ -399,27 +375,11 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
               <div className="flex-1 min-w-0"><h2 className="text-3xl font-black text-white tracking-tighter leading-none truncate">{horoscope?.sign}</h2><p className="text-[9px] font-black opacity-30 uppercase tracking-[0.2em] mt-2">Today's Theme: <span className="text-white/80">{horoscope?.summary}</span></p></div>
             </div>
             <div className="space-y-3"><div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div><p className="text-[13px] font-medium leading-snug text-white/90 italic tracking-tight py-1 min-h-[60px]">"{horoscope?.prediction}"</p></div>
-            
             <div className="p-6 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-wrap justify-between gap-x-4 gap-y-3">
                 {[{ label: 'Love', val: horoscope?.ratings.love }, { label: 'Work', val: horoscope?.ratings.work }, { label: 'Health', val: horoscope?.ratings.health }, { label: 'Wealth', val: horoscope?.ratings.wealth }].map(r => (
                   <div key={r.label} className="flex justify-between items-center w-full sm:w-[46%]"><span className="text-[8px] font-black uppercase tracking-widest text-white/30">{r.label}</span><StarRating value={r.val || 0} /></div>
                 ))}
             </div>
-
-            {horoscope.sources && horoscope.sources.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2"><i className="fa-solid fa-link"></i> Sources</h4>
-                <div className="flex flex-col gap-2">
-                  {horoscope.sources.slice(0, 3).map((source, idx) => (
-                    <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
-                      <span className="text-[10px] font-bold text-white/70 truncate pr-4 group-hover:text-indigo-300 transition-colors">{source.title}</span>
-                      <i className="fa-solid fa-arrow-up-right-from-square text-[8px] text-white/20 group-hover:text-white transition-all"></i>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="pt-6 border-t border-white/10 flex flex-col gap-6">
                <div className="flex justify-between items-center px-1">
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Birthday Settings</span>
@@ -436,20 +396,26 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
       <StandardModal 
         isOpen={isFocusModalOpen} 
         onClose={() => setIsFocusModalOpen(false)}
-        title="Focus Session"
-        maxWidth="420px"
+        maxWidth="460px"
       >
-        <div className="py-12 flex flex-col items-center gap-8 text-center animate-in zoom-in-95 duration-500">
-           <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center border border-white/10 relative">
-              <i className="fa-solid fa-clock text-4xl text-white/20"></i>
-              <div className="absolute inset-0 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-           </div>
-           <div className="space-y-2">
-              <h3 className="text-xl font-bold text-white tracking-tight">Stay Focused</h3>
-              <p className="text-[11px] text-white/40 leading-relaxed max-w-[280px]">Session settings and deep-work analytics will appear here soon. Keep the momentum going!</p>
-           </div>
-           <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-           <button onClick={() => setIsFocusModalOpen(false)} className="px-10 py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all border border-white/10">Configure Timer</button>
+        <div className="relative">
+          <button 
+            onClick={() => { setIsFocusModalOpen(false); timerState.setIsTimerImmersed(true); }}
+            className="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 hover:text-white transition-all border border-white/10 hover:bg-white/10 active:scale-95"
+            title="Full Immerse Mode"
+          >
+            <i className="fa-solid fa-expand text-lg"></i>
+          </button>
+          <div className="py-8">
+            <FocusModalContent 
+              timerLeft={timerState.timerLeft}
+              timerMax={timerState.timerMax}
+              timerActive={timerState.timerActive}
+              setTimerActive={timerState.setTimerActive}
+              setTimerLeft={timerState.setTimerLeft}
+              setTimerMax={timerState.setTimerMax}
+            />
+          </div>
         </div>
       </StandardModal>
     </header>
