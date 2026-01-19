@@ -32,6 +32,20 @@ const App: React.FC = () => {
     windDirection: 0
   });
 
+  // --- 凌晨自动刷新逻辑 (Midnight Auto-Refresh) ---
+  useEffect(() => {
+    const midnightCheck = setInterval(() => {
+      const currentRealDate = new Date().toDateString();
+      if (currentRealDate !== todayKey) {
+        // Detect date change at 12:00 AM
+        setTodayKey(currentRealDate);
+        // Also update the selected view to the new today
+        setSelectedDate(new Date());
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(midnightCheck);
+  }, [todayKey]);
+
   useEffect(() => {
     let t: any;
     if (timerActive && timerLeft > 0) {
