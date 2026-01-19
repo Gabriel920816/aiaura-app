@@ -9,11 +9,17 @@ interface WeatherIconProps {
 const WeatherIcon: React.FC<WeatherIconProps> = ({ condition, className = "" }) => {
   const renderIcon = () => {
     switch (condition) {
+      case 'Storm':
+        return (
+          <div className={`relative flex items-center justify-center ${className}`}>
+             <i className="fa-solid fa-cloud-showers-heavy text-[1.4rem] text-slate-400 relative z-10 filter drop-shadow-md"></i>
+             <i className="fa-solid fa-bolt text-[0.8rem] text-yellow-400 absolute -bottom-1 right-0 animate-pulse"></i>
+          </div>
+        );
       case 'Rain':
         return (
           <div className={`relative flex items-center justify-center ${className}`}>
             <i className="fa-solid fa-cloud text-[1.4rem] text-sky-400/90 relative z-10 filter drop-shadow-md"></i>
-            {/* 3 sequential raindrops */}
             <div className="absolute inset-0 top-3 left-0 flex justify-around w-full px-1">
               <span className="raindrop-drip" style={{ animationDelay: '0s', left: '20%' }}></span>
               <span className="raindrop-drip" style={{ animationDelay: '0.5s', left: '50%' }}></span>
@@ -27,10 +33,12 @@ const WeatherIcon: React.FC<WeatherIconProps> = ({ condition, className = "" }) 
             <i className="fa-solid fa-snowflake text-[1.3rem]"></i>
           </div>
         );
+      case 'Cloudy 1':
       case 'Cloudy':
         return (
           <div className={`relative flex items-center justify-center icon-cloudy ${className}`}>
-            <i className="fa-solid fa-cloud text-[1.3rem]"></i>
+            <i className="fa-solid fa-cloud text-[1.3rem] opacity-80"></i>
+            <i className="fa-solid fa-cloud text-[0.8rem] absolute -top-1 -right-1 opacity-40"></i>
           </div>
         );
       case 'Clear':

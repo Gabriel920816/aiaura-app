@@ -103,6 +103,7 @@ interface HeaderWidgetsProps {
   setBgImage: (url: string) => void;
   weatherData?: { temp: number, code: number, condition: string, location: string };
   onSetLocation: (lat: number, lon: number, name: string) => void;
+  onSetWeatherCondition: (cond: string) => void;
   timerState: {
     timerLeft: number;
     timerMax: number;
@@ -114,7 +115,7 @@ interface HeaderWidgetsProps {
   };
 }
 
-const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth, setBgImage, weatherData, onSetLocation, timerState }) => {
+const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth, setBgImage, weatherData, onSetLocation, onSetWeatherCondition, timerState }) => {
   const [horoscope, setHoroscope] = useState<HoroscopeData | null>(null);
   const [birthDate, setBirthDate] = useState<string>(localStorage.getItem('aura_birthdate') || '');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -224,15 +225,12 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
           </div>
           <span className="text-[1.85rem] font-[100] tracking-[0.2em] text-white uppercase opacity-95 leading-none translate-y-[1px]">RA</span>
         </div>
-
         <div className="hidden lg:block h-6 w-px bg-white/10 mx-2"></div>
-
         <div className="flex gap-3 py-1 items-center overflow-visible">
             <button onClick={() => setShowHealth(!showHealth)} className={`flex items-center gap-2 px-4 py-1.5 ios-glass transition-all shrink-0 h-10 ${showHealth ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 opacity-100' : 'opacity-60 hover:opacity-100'}`}>
               <i className="fa-solid fa-droplet text-[10px]"></i>
               <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Health</span>
             </button>
-            
             <div className="relative shrink-0 overflow-visible" ref={bgPickerRef}>
                 <button onClick={() => setShowBgPicker(!showBgPicker)} className={`w-10 h-10 ios-glass flex items-center justify-center transition-all ${showBgPicker ? 'bg-white/20 border-white/40 text-white scale-105 opacity-100' : 'opacity-60 hover:opacity-100'}`}>
                   <i className="fa-solid fa-palette text-[10px]"></i>
@@ -267,11 +265,9 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
             </div>
         </div>
       </div>
-
-      <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-0 h-full items-center justify-center z-[-1]">
+      <div className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-0 h-full items-center justify-center z-[-1]">
         <BigClock />
       </div>
-
       <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2.5 flex-1 w-full lg:auto overflow-visible pr-0 lg:pr-6">
         <div 
           onClick={() => setIsFocusModalOpen(true)}
@@ -284,7 +280,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
             resetTimer={() => { timerState.setTimerActive(false); timerState.setTimerLeft(timerState.timerMax); }}
           />
         </div>
-        
         <div className="relative overflow-visible" ref={containerRef}>
           <div onClick={() => setShowSearch(!showSearch)} className="ios-glass px-3.5 py-1.5 h-10 flex items-center gap-2.5 cursor-pointer hover:bg-white/10 transition-all shrink-0">
             <WeatherIcon condition={weatherConfig.condition} />
@@ -299,7 +294,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
             </div>
             <i className="fa-solid fa-magnifying-glass text-[9px] opacity-20 ml-1"></i>
           </div>
-
           {showSearch && (
             <div className="absolute top-full right-0 mt-4 p-6 ios-glass z-[99999] w-80 animate-in fade-in zoom-in-95 duration-300 shadow-2xl border border-white/10">
               <div className="flex gap-2 mb-6">
@@ -333,7 +327,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
             </div>
           )}
         </div>
-
         <div onClick={() => setIsModalOpen(true)} className="ios-glass px-4 py-1.5 h-10 flex items-center gap-3.5 cursor-pointer hover:bg-white/10 transition-all shrink-0 w-auto">
           {isSyncing ? (
             <div className="flex items-center gap-2 opacity-30"><div className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div><span className="text-[10px] font-black uppercase tracking-widest">Updating...</span></div>
@@ -350,7 +343,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
           )}
         </div>
       </div>
-
       <StandardModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
@@ -392,7 +384,6 @@ const HeaderWidgets: React.FC<HeaderWidgetsProps> = ({ showHealth, setShowHealth
           </div>
         )}
       </StandardModal>
-
       <StandardModal 
         isOpen={isFocusModalOpen} 
         onClose={() => setIsFocusModalOpen(false)}

@@ -15,7 +15,6 @@ const App: React.FC = () => {
   const [selectedCountry, setSelectedCountry] = useState<string>('Australia');
   const [bgImage, setBgImage] = useState<string>('https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=2560');
   
-  // --- 全局计时器状态 ---
   const [timerLeft, setTimerLeft] = useState(25 * 60);
   const [timerMax, setTimerMax] = useState(25 * 60);
   const [timerActive, setTimerActive] = useState(false);
@@ -24,14 +23,15 @@ const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [todayKey, setTodayKey] = useState<string>(new Date().toDateString());
 
-  const [weather, setWeather] = useState<{temp: number, code: number, condition: string, location: string}>({ 
+  const [weather, setWeather] = useState<{temp: number, code: number, condition: string, location: string, windSpeed: number, windDirection: number}>({ 
     temp: 24, 
     code: 0, 
     condition: 'Clear',
-    location: 'Detecting...'
+    location: 'Detecting...',
+    windSpeed: 0,
+    windDirection: 0
   });
 
-  // 核心计时逻辑
   useEffect(() => {
     let t: any;
     if (timerActive && timerLeft > 0) {
@@ -49,11 +49,23 @@ const App: React.FC = () => {
       const res = await fetch(url);
       const data = await res.json();
       const code = data.current_weather.weathercode;
+      const windSpeed = data.current_weather.windspeed;
+      const windDir = data.current_weather.winddirection;
+      
       let cond = 'Clear';
-      if (code >= 1 && code <= 3) cond = 'Cloudy';
-      else if (code >= 51 && code <= 67) cond = 'Rain';
+      if (code >= 95) cond = 'Storm'; 
       else if (code >= 71 && code <= 77) cond = 'Snow';
-      setWeather({ temp: Math.round(data.current_weather.temperature), code, condition: cond, location: locationName });
+      else if (code >= 51 && code <= 67) cond = 'Rain';
+      else if (code >= 1 && code <= 3) cond = 'Cloudy';
+      
+      setWeather({ 
+        temp: Math.round(data.current_weather.temperature), 
+        code, 
+        condition: cond, 
+        location: locationName,
+        windSpeed: windSpeed,
+        windDirection: windDir
+      });
     } catch (e) { console.error(e); }
   };
 
@@ -78,12 +90,8 @@ const App: React.FC = () => {
     const savedBg = localStorage.getItem('aura_bg');
     if (savedBg) setBgImage(savedBg);
 
-    // Initial fetch
     fetchCurrentWeather();
-
-    // Setup background refresh every 15 minutes
     const weatherInterval = setInterval(fetchCurrentWeather, 15 * 60 * 1000);
-    
     return () => clearInterval(weatherInterval);
   }, []);
 
@@ -96,7 +104,6 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black" key={todayKey}>
-      {/* 背景层 - 沉浸模式不虚化 */}
       <div 
         className="fixed inset-0 z-0 transition-transform duration-1000 ease-in-out"
         style={{ 
@@ -105,16 +112,27 @@ const App: React.FC = () => {
           backgroundSize: 'cover' 
         }}
       >
-        <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"></div>
+        <div 
+          className="absolute inset-0 transition-all duration-1000 ease-in-out backdrop-blur-[1px]" 
+          style={{ 
+            backgroundColor: weather.condition === 'Clear' ? 'rgba(0, 0, 0, 0.10)' : 
+                             weather.condition === 'Storm' ? 'rgba(0, 0, 0, 0.75)' : 
+                             'rgba(0, 0, 0, 0.45)' 
+          }}
+        ></div>
       </div>
 
-      <WeatherBackground condition={weather.condition} />
+      <WeatherBackground 
+        condition={weather.condition} 
+        windSpeed={weather.windSpeed} 
+        windDirection={weather.windDirection} 
+      />
 
-      {/* 主界面容器 - 沉浸模式时缩放隐藏 */}
       <div className={`dashboard-container relative z-10 border-none bg-transparent transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${isTimerImmersed ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
         <HeaderWidgets 
           showHealth={showHealth} setShowHealth={setShowHealth} setBgImage={setBgImage}
           weatherData={weather} onSetLocation={updateWeather}
+          onSetWeatherCondition={(cond) => setWeather(prev => ({ ...prev, condition: cond }))}
           timerState={{ timerLeft, timerMax, timerActive, setTimerActive, setTimerLeft, setTimerMax, setIsTimerImmersed }}
         />
         <main className="min-h-0 flex-1">
@@ -134,7 +152,6 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* 沉浸模式叠加层 - 调整缩放至更优雅的 1.1x - 1.4x */}
       {isTimerImmersed && (
         <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center animate-in fade-in duration-1000">
            <button 
