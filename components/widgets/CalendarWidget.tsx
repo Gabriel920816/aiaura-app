@@ -270,9 +270,14 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, setEvents, sele
 
         <div className="xl:w-[32%] flex flex-col xl:border-l border-white/10 xl:pl-6 overflow-visible">
           <div className="flex items-center justify-between mb-8">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/90">
-                {selectedDate.toLocaleDateString('default', { day: 'numeric', month: 'short' })} Agenda
-              </h4>
+              <div className="flex flex-col">
+                <span className="text-[1.5rem] font-black tracking-tighter text-white leading-tight">
+                  {selectedDate.toLocaleDateString('default', { day: 'numeric', month: 'short' })}
+                </span>
+                <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 mt-1">
+                  Agenda
+                </span>
+              </div>
               <button onClick={openAddModal} className="w-10 h-10 ios-glass flex items-center justify-center hover:bg-white/20 transition-all border border-white/20"><i className="fa-solid fa-plus"></i></button>
           </div>
           

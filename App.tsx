@@ -57,6 +57,13 @@ const App: React.FC = () => {
     } catch (e) { console.error(e); }
   };
 
+  const fetchCurrentWeather = () => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => updateWeather(pos.coords.latitude, pos.coords.longitude, 'Nearby'),
+      () => updateWeather(-33.8688, 151.2093, 'Sydney')
+    );
+  };
+
   useEffect(() => {
     const savedEvents = localStorage.getItem('aura_events');
     if (savedEvents) setEvents(JSON.parse(savedEvents));
@@ -71,10 +78,13 @@ const App: React.FC = () => {
     const savedBg = localStorage.getItem('aura_bg');
     if (savedBg) setBgImage(savedBg);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => updateWeather(pos.coords.latitude, pos.coords.longitude, 'Nearby'),
-      () => updateWeather(-33.8688, 151.2093, 'Sydney')
-    );
+    // Initial fetch
+    fetchCurrentWeather();
+
+    // Setup background refresh every 15 minutes
+    const weatherInterval = setInterval(fetchCurrentWeather, 15 * 60 * 1000);
+    
+    return () => clearInterval(weatherInterval);
   }, []);
 
   useEffect(() => { localStorage.setItem('aura_events', JSON.stringify(events)); }, [events]);
